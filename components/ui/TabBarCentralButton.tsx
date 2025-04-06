@@ -51,4 +51,4 @@ const TabBarCentralButton = () => {
   );
 };
 
-export default TabBarCentralButton; 
+export default TabBarCentralButton;
