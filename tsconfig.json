@@ -6,7 +6,10 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    // Added settings to help TypeScript resolve library types
+    "moduleResolution": "bundler", 
+    "jsx": "react-jsx" 
   },
   "include": [
     "**/*.ts",

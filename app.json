@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "v1.0_bling",
-    "slug": "v1.0_bling",
+    "name": "v1.0_bling_local",
+    "slug": "v1.0_bling_local",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
