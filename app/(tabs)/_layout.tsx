@@ -1,126 +1,91 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-// Import an icon library (Ionicons is commonly available in Expo)
-import { Ionicons } from '@expo/vector-icons';
-import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import TabBarCentralButton from '@/components/ui/TabBarCentralButton';
+
+// Removed Ionicons import as it's no longer used for tab icons here
+// import { Ionicons } from '@expo/vector-icons';
+
+// Import ALL custom icon components using relative paths
+import TabBarPlusIcon from '../../components/ui/TabBarPlusIcon';
+import TabBarWishlistIcon from '../../components/ui/TabBarWishlistIcon';
+import TabBarCentralButton from '../../components/ui/TabBarCentralButton';
+import TabBarMesBiensIcon from '../../components/ui/TabBarMesBiensIcon';
+import TabBarProfilIcon from '../../components/ui/TabBarProfilIcon';
+
+// Imports needed for the custom central button and layout
 import { TouchableOpacity, View, StyleSheet, Text } from 'react-native';
+import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 
-// Import other components later if needed for custom icons/tab bar
-
-// Define type for tabBarIcon props
+// Define type for tabBarIcon props for TypeScript (optional but good practice)
 interface TabBarIconProps {
   color: string;
   size: number;
   focused: boolean;
 }
 
-// Define type for tabBarLabel props
-interface TabBarLabelProps {
-  color: string;
-  focused: boolean; // Although not used in the Text style, it's part of the props
-}
-
 export default function TabLayout() {
-  // const colorScheme = useColorScheme(); // Can add this later if needed for colors
-
   return (
-    <Tabs
-      screenOptions={{
-        // tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint, // Add styling later
-        headerShown: false, // We'll handle headers in individual screens or stack
-        tabBarStyle: { height: 60 }, // Example: Adjust tab bar style if needed
-      }}>
+    <Tabs screenOptions={{ headerShown: false }}>
 
-      {/* 1. Plus */}
+      {/* plus screen */}
       <Tabs.Screen
-        name="plus" // Corresponds to app/(tabs)/plus.tsx
+        name="plus"
         options={{
-          title: 'Plus', // Keep title for accessibility, but hide label visually later if needed
-          tabBarIcon: ({ color, size, focused }: TabBarIconProps) => (
-            <Ionicons name={focused ? "sparkles" : "sparkles-outline"} size={size} color={color} />
-          ),
-          tabBarLabel: ({ color }: TabBarLabelProps) => (
-            <Text style={{ color: color }}>Plus</Text>
-          ),
+          title: 'Plus',
+          tabBarIcon: ({ color, size }) => <TabBarPlusIcon color={color} size={size} />,
         }}
       />
 
-      {/* 2. Wishlist */}
+      {/* wishlist screen */}
       <Tabs.Screen
-        name="wishlist" // Corresponds to app/(tabs)/wishlist.tsx
+        name="wishlist"
         options={{
           title: 'Wishlist',
-          tabBarIcon: ({ color, size, focused }: TabBarIconProps) => (
-            <Ionicons name={focused ? "heart" : "heart-outline"} size={size} color={color} />
-          ),
-          tabBarLabel: ({ color }: TabBarLabelProps) => (
-            <Text style={{ color: color }}>Wishlist</Text>
-          ),
+          tabBarIcon: ({ color, size }) => <TabBarWishlistIcon color={color} size={size} />,
         }}
       />
 
-      {/* 3. Index (Chat / Central Button) */}
+      {/* index screen - USES CUSTOM CENTRAL BUTTON */}
       <Tabs.Screen
-        name="index" // Corresponds to app/(tabs)/index.tsx
+        name="index"
         options={{
-          // title: 'Chat', // Removed title
-          // We will customize this one significantly later
+          title: 'Chat',
           tabBarButton: (props: BottomTabBarButtonProps) => (
             <TouchableOpacity
-              style={styles.centralButtonWrapper} // Add style for positioning
+              style={styles.centralButtonWrapper}
               onPress={props.onPress}
-              accessibilityState={props.accessibilityState}
             >
-               <TabBarCentralButton /> {/* Render the SVG component inside */}
+              <TabBarCentralButton />
             </TouchableOpacity>
           ),
-          // No tabBarLabel needed for the central button
         }}
       />
 
-      {/* 4. Mes Biens */}
-       <Tabs.Screen
-        name="mesbiens" // Corresponds to app/(tabs)/mesbiens.tsx
+      {/* mesbiens screen */}
+      <Tabs.Screen
+        name="mesbiens"
         options={{
           title: 'Mes Biens',
-           tabBarIcon: ({ color, size, focused }: TabBarIconProps) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={size} color={color} />
-          ),
-          tabBarLabel: ({ color }: TabBarLabelProps) => (
-            <Text style={{ color: color }}>Mes Biens</Text>
-          ),
+          tabBarIcon: ({ color, size }) => <TabBarMesBiensIcon color={color} size={size} />,
         }}
       />
 
-      {/* 5. Profil */}
-       <Tabs.Screen
-        name="profil" // Corresponds to app/(tabs)/profil.tsx
+      {/* profil screen */}
+      <Tabs.Screen
+        name="profil"
         options={{
           title: 'Profil',
-           tabBarIcon: ({ color, size, focused }: TabBarIconProps) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
-          ),
-          tabBarLabel: ({ color }: TabBarLabelProps) => (
-            <Text style={{ color: color }}>Profil</Text>
-          ),
+          tabBarIcon: ({ color, size }) => <TabBarProfilIcon color={color} size={size} />,
         }}
       />
-
     </Tabs>
   );
 }
 
-// Add StyleSheet for the wrapper
+// Styles for the central button wrapper
 const styles = StyleSheet.create({
   centralButtonWrapper: {
-    // Style to lift the button up
     top: -18,
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-    // Ensure touch area covers the button
-    width: 70,
-    height: 70,
   },
 });
