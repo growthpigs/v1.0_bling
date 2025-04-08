@@ -24,7 +24,10 @@ interface TabBarIconProps {
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs screenOptions={{
+      headerShown: false,
+      tabBarStyle: { borderTopWidth: 0, elevation: 0 }
+    }}>
 
       {/* plus screen */}
       <Tabs.Screen

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,18 +8,33 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
+  ScrollView,
 } from 'react-native';
-// Import an icon component if available, e.g., Feather for the send button
-// import { Feather } from '@expo/vector-icons';
+// Import message bubble components
+import AIMessageBubble from '../../components/AIMessageBubble';
+import UserMessageBubble from '../../components/UserMessageBubble';
+// Import SmartTag using alias
+import SmartTag from '@/components/SmartTag';
+
+// Define Message type
+interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'ai';
+}
 
 const ChatScreen = () => {
-  // Placeholder state for input - replace with actual state management later
-  const [message, setMessage] = React.useState('');
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<Message[]>([
+    { id: '1', text: 'Salut ! Prêt à trouver ton nouveau chez-toi ?', sender: 'ai' },
+    { id: '2', text: 'Oui! Je cherche à acheter.', sender: 'user' },
+    { id: '3', text: 'Super! Dans quelle ville ou quartier ?', sender: 'ai' }
+  ]);
 
   const handleSend = () => {
     console.log('Sending message:', message);
-    // TODO: Implement actual send logic (e.g., API call)
-    setMessage(''); // Clear input after sending
+    setMessage('');
   };
 
   return (
@@ -27,29 +42,67 @@ const ChatScreen = () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0} // Adjust offset if needed
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.mainContainer}>
-          {/* Chat Feed Area */}
-          <View style={styles.feedArea}>
-            <Text style={styles.feedPlaceholderText}>Chat Feed Area</Text>
-            {/* // TODO: Replace with FlatList or ScrollView for actual messages */}
-          </View>
+          {/* Chat Feed Area - Using FlatList */}
+          <FlatList
+            data={messages}
+            renderItem={({ item }: { item: Message }) => (
+              <Text style={{
+                color: 'black',
+                padding: 10,
+                alignSelf: item.sender === 'user' ? 'flex-end' : 'flex-start',
+                maxWidth: '80%',
+                marginVertical: 4,
+                backgroundColor: item.sender === 'user' ? '#D0E0FF' : '#EEEEEE',
+                borderRadius: 10,
+                transform: [],
+                fontFamily: 'SF-Pro-Regular'
+              }}>
+                {item.text}
+              </Text>
+            )}
+            keyExtractor={(item: Message) => item.id}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10 }}
+          />
+
+          {/* Smart Tags Area */}
+          <ScrollView
+            horizontal={true}
+            showsHorizontalScrollIndicator={false}
+            style={styles.smartTagsScrollView}
+            contentContainerStyle={styles.smartTagsContainer}
+          >
+            <SmartTag
+              text="Acheter"
+              gradient={{ colors: ["#8DE473", "#5BCFBC"], locations: [0, 1] }}
+              onRemove={() => console.log('Remove Acheter')}
+            />
+            <SmartTag
+              text="Paris, 12th"
+              gradient={{ colors: ["#6BD0BA", "#75E8DB"], locations: [0, 1] }}
+              onRemove={() => console.log('Remove Paris')}
+            />
+            <SmartTag
+              text="3 Pieces"
+              gradient={{ colors: ["#80E4D9", "#6BD8F7"], locations: [0, 1] }}
+              onRemove={() => console.log('Remove Pieces')}
+            />
+          </ScrollView>
 
           {/* Input Bar Area */}
           <View style={styles.inputBarContainer}>
             <TextInput
               style={styles.textInput}
               placeholder="Message Barak..."
-              placeholderTextColor="#ACACAC" // Specific placeholder color
+              placeholderTextColor="#ACACAC"
               value={message}
               onChangeText={setMessage}
-              multiline // Allow multiline input
+              multiline
             />
             <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-              {/* If using an Icon component */}
-              {/* <Feather name="arrow-up" size={18} color="#FFF" /> */}
-              {/* If using Text temporarily */}
               <Text style={styles.sendButtonText}>↑</Text>
             </TouchableOpacity>
           </View>
@@ -62,63 +115,61 @@ const ChatScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF', // Use actual white color
+    backgroundColor: '#FFF',
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   mainContainer: {
     flex: 1,
-    backgroundColor: '#FFF', // Use actual white color
-    paddingBottom: 5, // Changed from 7
+    backgroundColor: '#FFF',
+    paddingBottom: 5,
   },
-  feedArea: {
-    flex: 1, // Takes up available space above input bar
-    justifyContent: 'center', // Temporary: Center placeholder
-    alignItems: 'center', // Temporary: Center placeholder
-    padding: 10,
+  smartTagsScrollView: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    flexGrow: 0,
   },
-  feedPlaceholderText: {
-    fontSize: 16,
-    color: '#222', // Use Primary Text Color
-    fontFamily: 'SF-Pro-Regular', // Use loaded font
+  smartTagsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   inputBarContainer: {
     flexDirection: 'row',
-    padding: 10, // Use specified padding
-    borderTopWidth: 1, // Use specified border width (though FSD might imply none)
-    borderTopColor: '#E5E5EA', // Use Input Border Color
-    backgroundColor: '#FFF', // Use actual white color
-    alignItems: 'center', // Align items vertically center
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderTopColor: '#E5E5EA',
+    backgroundColor: '#FFF',
+    alignItems: 'center',
   },
   textInput: {
     flex: 1,
-    borderWidth: 1, // Use specified border width
-    borderColor: '#E5E5EA', // Use Input Border Color
-    borderRadius: 8, // Use specified border radius
-    paddingHorizontal: 12, // Use specified horizontal padding
-    paddingVertical: 8, // Use specified vertical padding
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     marginRight: 10,
-    backgroundColor: '#FFF', // Use Input Background Color
-    color: '#222', // Use Primary Text Color
-    fontFamily: 'SF-Pro-Regular', // Use loaded font
-    fontSize: 16, // Or adjust based on FSD
-    maxHeight: 100, // Optional: Limit automatic height growth for multiline
+    backgroundColor: '#FFF',
+    color: '#222',
+    fontFamily: 'SF-Pro-Regular',
+    fontSize: 17,
+    maxHeight: 100,
   },
   sendButton: {
-    backgroundColor: '#000', // Use Send Button Background Color
-    borderRadius: 18, // Use specified border radius for circle
-    width: 36, // Fixed width for circle
-    height: 36, // Fixed height for circle
+    backgroundColor: '#000',
+    borderRadius: 18,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonText: {
-    // Style for the temporary text button - might remove if using icon
-    color: '#FFF', // Use Send Button Text Color
-    fontFamily: 'SF-Pro-Regular', // Use loaded font (or Bold)
-    fontSize: 18, // Adjusted size for arrow symbol
-    lineHeight: 20, // Adjust line height for centering symbol
+    color: '#FFF',
+    fontFamily: 'SF-Pro-Regular',
+    fontSize: 18,
+    lineHeight: 20,
   },
 });
 
