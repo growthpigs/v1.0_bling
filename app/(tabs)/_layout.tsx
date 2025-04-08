@@ -29,8 +29,13 @@ export default function TabLayout() {
       tabBarStyle: {
         borderTopWidth: 0,
         elevation: 0,
-        paddingTop: 12
-      }
+      },
+      tabBarActiveTintColor: '#000000',
+      tabBarInactiveTintColor: '#CCCCCC',
+      tabBarLabelStyle: {
+        fontFamily: 'SF-Pro-Regular',
+        fontSize: 10,
+      },
     }}>
 
       {/* plus screen */}
@@ -47,7 +52,21 @@ export default function TabLayout() {
         name="wishlist"
         options={{
           title: 'Wishlist',
-          tabBarIcon: ({ color, size }) => <TabBarWishlistIcon color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => {
+            const largerSize = size + 2;
+            return (
+              <View style={{ transform: [{ translateX: -5 }] }}>
+                <TabBarWishlistIcon color={color} size={largerSize} />
+              </View>
+            );
+          },
+          tabBarLabel: ({ children, color }) => (
+            <View style={{ transform: [{ translateX: -5 }] }}>
+              <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
+                {children}
+              </Text>
+            </View>
+          ),
         }}
       />
 
@@ -72,7 +91,20 @@ export default function TabLayout() {
         name="mesbiens"
         options={{
           title: 'Mes Biens',
-          tabBarIcon: ({ color, size }) => <TabBarMesBiensIcon color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => {
+            return (
+              <View style={{ transform: [{ translateX: 5 }] }}>
+                <TabBarMesBiensIcon color={color} size={size} />
+              </View>
+            );
+          },
+          tabBarLabel: ({ children, color }) => (
+            <View style={{ transform: [{ translateX: 5 }] }}>
+              <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
+                {children}
+              </Text>
+            </View>
+          ),
         }}
       />
 
@@ -91,7 +123,7 @@ export default function TabLayout() {
 // Styles for the central button wrapper
 const styles = StyleSheet.create({
   centralButtonWrapper: {
-    top: -5,
+    top: -20,
     justifyContent: 'center',
     alignItems: 'center',
   },

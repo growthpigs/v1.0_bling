@@ -2,162 +2,90 @@ import React from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
-  TouchableOpacity,
-  ImageSourcePropType,
+  Platform, // Added for potential platform-specific styles
 } from 'react-native';
-// Assuming you might use theme constants later
-// import Colors from '@/constants/Colors';
-// import Fonts from '@/constants/Fonts';
+import { Image } from 'expo-image'; // Using expo-image
 
-interface PropertyListItemProps {
-  imageUrl: ImageSourcePropType; // Use ImageSourcePropType for flexibility (require, uri)
-  imageCount?: number; // Optional number for the circle overlay
-  price: string; // e.g., "€ 1,150,000"
-  size: string; // e.g., "85m²"
-  roomInfo: string; // e.g., "3 pièces" or "2 bed"
-  location: string; // e.g., "Avenue Victor Hugo - 16th"
-  feature: string; // e.g., "Beautiful balcony, renovated"
-  onPress: () => void; // Function to call when the item is tapped
-  // Add props for swipe actions configuration later
+// Revert Props to match original Property Card data structure
+export interface PropertyListItemProps {
+  id: string; 
+  imageUrl?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  price?: string;
+  area?: string | number;
+  rooms?: string | number;
+  // Add any other relevant fields from original property data
 }
+
+// Placeholder image
+const placeholderImage = require('../assets/images/placeholder-property.jpg');
 
 const PropertyListItem: React.FC<PropertyListItemProps> = ({
   imageUrl,
-  imageCount,
-  price,
-  size,
-  roomInfo,
-  location,
-  feature,
-  onPress,
+  addressLine1 = 'Address Line 1', 
+  addressLine2 = 'Address Line 2',
+  price = 'Price',
+  area = 'Area',
+  rooms = 'Rooms',
 }) => {
-  // Basic structure, styling is minimal placeholder
-  // We will wrap this whole component in a swipeable container later
+  // Format details string
+  const detailsString = `€${price} • ${area}m² • ${rooms} Piece${Number(rooms) !== 1 ? 's' : ''}`;
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.container}>
-      {/* Image Container */}
-      <View style={styles.imageContainer}>
-        <Image source={imageUrl} style={styles.image} resizeMode="cover" />
-        {imageCount !== undefined && imageCount > 0 && (
-          <View style={styles.imageCountBadge}>
-            <Text style={styles.imageCountText}>{imageCount}</Text>
-          </View>
-        )}
+    <View style={styles.itemContainer}>
+      {/* Image Column */}
+      <Image
+        style={styles.image}
+        source={{ uri: imageUrl }}
+        placeholder={placeholderImage}
+        contentFit="cover"
+        transition={300}
+      />
+      {/* Text Details Column */}
+      <View style={styles.textContainer}>
+        <Text style={styles.address1Text} numberOfLines={1}>{addressLine1}</Text>
+        <Text style={styles.address2Text} numberOfLines={1}>{addressLine2}</Text>
+        <Text style={styles.detailsText} numberOfLines={1}>{detailsString}</Text>
       </View>
-
-      {/* Details Container */}
-      <View style={styles.detailsContainer}>
-        <View style={styles.row}>
-          {/* Combine price, size, roomInfo - adjust layout as needed */}
-          <Text style={styles.priceText} numberOfLines={1}>
-            {price}
-          </Text>
-           <Text style={styles.detailsSeparator}> - </Text>
-          <Text style={styles.sizeText} numberOfLines={1}>
-            {size}
-          </Text>
-          <Text style={styles.detailsSeparator}> - </Text>
-          <Text style={styles.roomInfoText} numberOfLines={1}>
-             {roomInfo}
-          </Text>
-        </View>
-         <Text style={styles.locationText} numberOfLines={1}>
-          {location}
-        </Text>
-        <Text style={styles.featureText} numberOfLines={2}>
-          {feature}
-        </Text>
-      </View>
-    </TouchableOpacity>
-    // Swipe actions (e.g., Note, Share, Remove) will render here
-    // when revealed by the swipe gesture in the parent component
+    </View>
   );
 };
 
-// Basic Placeholder Styles - Refine with Theme constants later
 const styles = StyleSheet.create({
-  container: {
+  itemContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF', // Placeholder background
-    borderRadius: 8, // Match mockup rounding
-    marginBottom: 12, // Space between items
-    overflow: 'hidden', // Ensures content stays within rounded borders
-    // Add shadow/elevation if needed based on design system
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    marginHorizontal: 16, // Add some horizontal margin if list is not full-width
-  },
-  imageContainer: {
-    width: 100, // Adjust width as needed
-    height: 100, // Make it square or adjust height
-    // backgroundColor: '#E0E0E0', // Placeholder if image fails to load
+    alignItems: 'center',
+    paddingVertical: 10, // Keep some vertical padding for spacing
+    paddingHorizontal: 0, // Use list padding for horizontal space
+    marginBottom: 6, // Changed from 8
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: 64, 
+    height: 64, 
+    borderRadius: 6,
+    marginRight: 16, // Increased margin
+    backgroundColor: '#F3F4F6',
   },
-  imageCountBadge: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    backgroundColor: 'rgba(0, 0, 255, 0.7)', // Blueish overlay like mockup
-    borderRadius: 10, // Make it circular
-    width: 20,
-    height: 20,
+  textContainer: {
+    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  imageCountText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
+  address1Text: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
   },
-  detailsContainer: {
-    flex: 1, // Takes remaining space
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    justifyContent: 'space-between', // Distribute content vertically
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4, // Space below the top row
-    flexWrap: 'nowrap', // Prevent wrapping in this row
-  },
-  priceText: {
-    fontWeight: 'bold',
+  address2Text: {
     fontSize: 14,
-    // color: Colors.text, // Use Theme
-    marginRight: 2, // Tiny space before separator
+    color: '#6B7280',
+    marginBottom: 4,
   },
-   sizeText: {
-    fontSize: 14,
-    // color: Colors.text, // Use Theme
-    marginHorizontal: 2,
-  },
-   roomInfoText: {
-     fontSize: 14,
-    // color: Colors.text, // Use Theme
-    marginLeft: 2,
-  },
-   detailsSeparator: {
-     fontSize: 14,
-    color: '#888', // Lighter separator color
-   },
-   locationText: {
-    fontSize: 12,
-    color: '#555', // Slightly lighter color
-    marginBottom: 4, // Space below location
-  },
-  featureText: {
-    fontSize: 12,
-    color: '#777', // Even lighter color
+  detailsText: {
+    fontSize: 13,
+    color: '#6B7280',
   },
 });
 

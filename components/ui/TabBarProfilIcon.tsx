@@ -1,15 +1,18 @@
 import React from 'react';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, FillRule } from 'react-native-svg';
 
 interface TabBarIconProps {
   color: string;
   size?: number;
 }
 
-export default function TabBarProfilIcon({ color, size = 24 }: TabBarIconProps) {
+export default function TabBarProfilIcon({ color, size }: TabBarIconProps) {
+  // Change default size to 28
+  const iconSize = size || 28;
+
   // Original viewBox: "0 0 24 24"
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
       {/* Body Path */}
       <Path
         fillRule="evenodd"
