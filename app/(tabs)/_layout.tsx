@@ -26,7 +26,11 @@ export default function TabLayout() {
   return (
     <Tabs screenOptions={{
       headerShown: false,
-      tabBarStyle: { borderTopWidth: 0, elevation: 0 }
+      tabBarStyle: {
+        borderTopWidth: 0,
+        elevation: 0,
+        paddingTop: 12
+      }
     }}>
 
       {/* plus screen */}

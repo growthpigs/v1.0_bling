@@ -33,8 +33,32 @@ const ChatScreen = () => {
   ]);
 
   const handleSend = () => {
-    console.log('Sending message:', message);
+    const sentText = message.trim();
+    if (!sentText) {
+      return; // Don't send empty messages
+    }
+
+    const userMsgId = Date.now().toString();
+
+    // Add user message
+    setMessages(prevMessages => [
+      ...prevMessages,
+      { id: userMsgId, text: sentText, sender: 'user' }
+    ]);
+
+    // Clear input immediately
     setMessage('');
+
+    // Simulate AI reply after a delay
+    setTimeout(() => {
+      const aiMsgId = (Date.now() + 1).toString(); // Ensure unique ID
+      const aiReply = { id: aiMsgId, text: 'Received: ' + sentText + '. Processing...', sender: 'ai' as const }; // Explicitly type sender
+
+      setMessages(prevMessages => [
+        ...prevMessages,
+        aiReply
+      ]);
+    }, 1000); // 1 second delay
   };
 
   return (
@@ -48,24 +72,19 @@ const ChatScreen = () => {
           {/* Chat Feed Area - Using FlatList */}
           <FlatList
             data={messages}
-            renderItem={({ item }: { item: Message }) => (
-              <Text style={{
-                color: 'black',
-                padding: 10,
-                alignSelf: item.sender === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '80%',
-                marginVertical: 4,
-                backgroundColor: item.sender === 'user' ? '#D0E0FF' : '#EEEEEE',
-                borderRadius: 10,
-                transform: [],
-                fontFamily: 'SF-Pro-Regular'
-              }}>
-                {item.text}
-              </Text>
-            )}
+            renderItem={({ item }: { item: Message }) =>
+              item.sender === 'ai' ? (
+                <AIMessageBubble messageText={item.text} />
+              ) : (
+                <UserMessageBubble messageText={item.text} />
+              )
+            }
             keyExtractor={(item: Message) => item.id}
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10 }}
+            ListHeaderComponent={() => (
+              <Text style={styles.dateHeader}>01 Récherche :: April 8, 2025 08:03</Text>
+            )}
           />
 
           {/* Smart Tags Area */}
@@ -101,6 +120,7 @@ const ChatScreen = () => {
               value={message}
               onChangeText={setMessage}
               multiline
+              onSubmitEditing={handleSend}
             />
             <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
               <Text style={styles.sendButtonText}>↑</Text>
@@ -124,6 +144,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF',
     paddingBottom: 5,
+  },
+  dateHeader: {
+    textAlign: 'center',
+    paddingVertical: 15,
+    fontSize: 12,
+    color: '#ACACAC',
+    fontFamily: 'SF-Pro-Regular',
   },
   smartTagsScrollView: {
     paddingHorizontal: 10,

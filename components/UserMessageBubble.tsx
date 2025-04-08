@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 
 interface UserMessageBubbleProps {
   messageText: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-const UserMessageBubble: React.FC<UserMessageBubbleProps> = ({ messageText }) => {
+const UserMessageBubble: React.FC<UserMessageBubbleProps> = ({ messageText, style }) => {
   return (
-    <View style={styles.bubbleContainer}>
+    <View style={[styles.bubbleContainer, style]}>
       <Text style={styles.messageText}>{messageText}</Text>
     </View>
   );
@@ -15,7 +16,7 @@ const UserMessageBubble: React.FC<UserMessageBubbleProps> = ({ messageText }) =>
 
 const styles = StyleSheet.create({
   bubbleContainer: {
-    backgroundColor: '#007AFF', // Blue background
+    backgroundColor: '#E5E5EA', // Changed from #c8e9fd (light grey)
     padding: 10,
     borderRadius: 15,
     alignSelf: 'flex-end', // Align to the right
@@ -23,7 +24,7 @@ const styles = StyleSheet.create({
     maxWidth: '80%', // Prevent bubble from taking full width
   },
   messageText: {
-    color: '#FFF', // White text color
+    color: '#222', // Ensure dark text color
     fontFamily: 'SF-Pro-Regular',
     fontSize: 16, // Standard text size
   },
