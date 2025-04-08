@@ -139,7 +139,7 @@ export default function TabLayout() {
 // Styles for the central button wrapper
 const styles = StyleSheet.create({
   centralButtonWrapper: {
-    top: -20,
+    top: -10,
     justifyContent: 'center',
     alignItems: 'center',
   },
