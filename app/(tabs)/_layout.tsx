@@ -43,7 +43,15 @@ export default function TabLayout() {
         name="plus"
         options={{
           title: 'Plus',
-          tabBarIcon: ({ color, size }) => <TabBarPlusIcon color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => {
+            const largerSize = size + 2;
+            return <TabBarPlusIcon color={color} size={largerSize} />;
+          },
+          tabBarLabel: ({ children, color }) => (
+            <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
+              {children}
+            </Text>
+          ),
         }}
       />
 
@@ -55,13 +63,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => {
             const largerSize = size + 2;
             return (
-              <View style={{ transform: [{ translateX: -5 }] }}>
+              <View style={{ transform: [{ translateX: -12 }] }}>
                 <TabBarWishlistIcon color={color} size={largerSize} />
               </View>
             );
           },
           tabBarLabel: ({ children, color }) => (
-            <View style={{ transform: [{ translateX: -5 }] }}>
+            <View style={{ transform: [{ translateX: -12 }] }}>
               <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
                 {children}
               </Text>
@@ -93,13 +101,13 @@ export default function TabLayout() {
           title: 'Mes Biens',
           tabBarIcon: ({ color, size }) => {
             return (
-              <View style={{ transform: [{ translateX: 5 }] }}>
+              <View style={{ transform: [{ translateX: 12 }] }}>
                 <TabBarMesBiensIcon color={color} size={size} />
               </View>
             );
           },
           tabBarLabel: ({ children, color }) => (
-            <View style={{ transform: [{ translateX: 5 }] }}>
+            <View style={{ transform: [{ translateX: 12 }] }}>
               <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
                 {children}
               </Text>
@@ -113,7 +121,15 @@ export default function TabLayout() {
         name="profil"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color, size }) => <TabBarProfilIcon color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => {
+            const largerSize = size + 2;
+            return <TabBarProfilIcon color={color} size={largerSize} />;
+          },
+          tabBarLabel: ({ children, color }) => (
+            <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
+              {children}
+            </Text>
+          ),
         }}
       />
     </Tabs>
