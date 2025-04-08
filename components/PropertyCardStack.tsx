@@ -22,7 +22,11 @@ import Animated, {
 // Import the PropertyCard component
 import PropertyCard from './PropertyCard';
 
-// Mock data for demonstration
+// Import API functions
+import { likeProperty, passProperty } from '../services/api'; // Corrected path
+
+// Mock data - COMMENT OUT or REMOVE if using passed props
+/*
 const mockProperties = [
   {
     id: 'prop-1',
@@ -70,12 +74,25 @@ const mockProperties = [
     imageUrl: 'https://via.placeholder.com/400/DDA0DD/808080?text=Property+5',
   },
 ];
+*/
 
 // Extract PropertyCardProps if needed, assuming PropertyCard takes these
-type PropertyData = typeof mockProperties[0];
+// Define PropertyData structure explicitly or infer if possible
+// This should match the structure passed from index.tsx
+interface PropertyData {
+  id: string;
+  addressLine1: string;
+  addressLine2: string;
+  price: string;
+  area: number;
+  rooms: number;
+  imageUrl: string;
+}
 
-// Define props if needed later, for now it takes none
-interface PropertyCardStackProps {}
+// Update Props to accept properties array
+interface PropertyCardStackProps {
+  properties: PropertyData[];
+}
 
 // Calculate card width based on screen width and padding
 const { width: screenWidth } = Dimensions.get('window');
@@ -89,7 +106,7 @@ const degreesToRadians = (degrees: number) => {
   return degrees * (Math.PI / 180);
 };
 
-const PropertyCardStack: React.FC<PropertyCardStackProps> = (props) => {
+const PropertyCardStack: React.FC<PropertyCardStackProps> = ({ properties }) => {
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = screenWidth * 0.85;
   const cardHeight = cardWidth;
@@ -158,6 +175,23 @@ const PropertyCardStack: React.FC<PropertyCardStackProps> = (props) => {
             mass: 0.9
         }); 
 
+        // --- Add API call logic before updating activeIndex --- 
+        const swipedCardIndex = activeIndex.value;
+        const swipedPropertyId = properties[swipedCardIndex]?.id; // Get ID from properties prop
+
+        if (swipedPropertyId) {
+          if (direction === 1) { // Right swipe (Like)
+            console.log(`Calling API: likeProperty(${swipedPropertyId})`);
+            runOnJS(likeProperty)(swipedPropertyId);
+          } else { // Left swipe (Pass)
+            console.log(`Calling API: passProperty(${swipedPropertyId})`);
+            runOnJS(passProperty)(swipedPropertyId);
+          }
+        } else {
+            console.warn("Could not get property ID for swipe action.");
+        }
+        // --- End of API call logic ---
+
         // Update activeIndex directly after starting spring animations
         activeIndex.value = activeIndex.value + 1;
 
@@ -171,7 +205,8 @@ const PropertyCardStack: React.FC<PropertyCardStackProps> = (props) => {
 
   return (
     <View style={[styles.stackContainer, { alignSelf: 'center', height: cardHeight * 1.15 }]}>
-      {mockProperties.map((property: PropertyData, index: number) => {
+      {/* Use the properties prop instead of mockProperties */}
+      {properties.map((property: PropertyData, index: number) => {
         const animatedStyle = useAnimatedStyle(() => {
           // 4. Modify useAnimatedStyle: Use activeIndex.value
           const positionIndex = index - activeIndex.value;
@@ -236,13 +271,12 @@ const PropertyCardStack: React.FC<PropertyCardStackProps> = (props) => {
         if (currentPositionIndex === 0) {
           return (
             <GestureDetector key={property.id} gesture={panGesture}>
-              {/* Top card Animated.View goes INSIDE GestureDetector */}
               <Animated.View
                 style={[
                   styles.cardBase,
                   { width: cardWidth, height: cardHeight },
                   animatedStyle, 
-                  { zIndex: mockProperties.length - index }
+                  { zIndex: properties.length - index } // Use properties.length
                 ]}
               >
                 <PropertyCard {...property} />
@@ -258,7 +292,7 @@ const PropertyCardStack: React.FC<PropertyCardStackProps> = (props) => {
                     styles.cardBase,
                     { width: cardWidth, height: cardHeight },
                     animatedStyle,
-                    { zIndex: mockProperties.length - index }
+                    { zIndex: properties.length - index } // Use properties.length
                 ]}
                 >
                 <View style={styles.cardOutline} />

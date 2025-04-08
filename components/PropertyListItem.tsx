@@ -9,7 +9,7 @@ import { Image } from 'expo-image'; // Using expo-image
 
 // Revert Props to match original Property Card data structure
 export interface PropertyListItemProps {
-  id: string; 
+  id: string;
   imageUrl?: string;
   addressLine1?: string;
   addressLine2?: string;
@@ -24,7 +24,7 @@ const placeholderImage = require('../assets/images/placeholder-property.jpg');
 
 const PropertyListItem: React.FC<PropertyListItemProps> = ({
   imageUrl,
-  addressLine1 = 'Address Line 1', 
+  addressLine1 = 'Address Line 1',
   addressLine2 = 'Address Line 2',
   price = 'Price',
   area = 'Area',
@@ -57,15 +57,15 @@ const styles = StyleSheet.create({
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10, // Keep some vertical padding for spacing
-    paddingHorizontal: 0, // Use list padding for horizontal space
-    marginBottom: 6, // Changed from 8
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    marginBottom: 6,
   },
   image: {
-    width: 64, 
-    height: 64, 
+    width: 64,
+    height: 64,
     borderRadius: 6,
-    marginRight: 16, // Increased margin
+    marginRight: 16,
     backgroundColor: '#F3F4F6',
   },
   textContainer: {

@@ -17,13 +17,27 @@ import UserMessageBubble from '../../components/UserMessageBubble';
 // Import SmartTag using alias
 import SmartTag from '@/components/SmartTag';
 // Import the API service
-import { sendChatMessage } from '../../services/api';
+import * as api from '../../services/api';
 import PropertyCardStack from '../../components/PropertyCardStack'; // Import the new stack component
 
+// Define PropertyData based on PropertyCardStack mock data
+interface PropertyData {
+  id: string;
+  addressLine1: string;
+  addressLine2: string;
+  price: string;
+  area: number;
+  rooms: number;
+  imageUrl: string;
+}
+
 // Define ChatItem union type
-type ChatItem =
-  | { type: 'message'; id: string; text: string; sender: 'user' | 'ai'; }
-  | { type: 'propertyStack'; id: string; /* Add other props later if needed */ };
+interface ChatItem {
+  id: string;
+  type: 'userMessage' | 'aiMessage' | 'propertyStack';
+  text?: string;
+  properties?: PropertyData[];
+}
 
 // Define TagData type
 interface TagData {
@@ -33,13 +47,8 @@ interface TagData {
 }
 
 const ChatScreen = () => {
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<ChatItem[]>([
-    { type: 'message', id: '1', text: 'Salut ! Prêt à trouver ton nouveau chez-toi ?', sender: 'ai' },
-    { type: 'message', id: '2', text: 'Oui! Je cherche à acheter.', sender: 'user' },
-    { type: 'message', id: '3', text: 'Super! Dans quelle ville ou quartier ?', sender: 'ai' },
-    { id: 'stack-1', type: 'propertyStack' }
-  ]);
+  const [inputText, setInputText] = useState('');
+  const [messages, setMessages] = useState<ChatItem[]>([]);
 
   // State for Smart Tags
   const [displayedTags, setDisplayedTags] = useState<TagData[]>([
@@ -61,43 +70,59 @@ const ChatScreen = () => {
   ]);
 
   const handleSend = async () => {
-    const sentText = message.trim();
-    if (!sentText) {
+    const currentInput = inputText.trim();
+    if (!currentInput) {
       return;
     }
 
     const userMsgId = Date.now().toString();
 
     // Create user message with the new type
-    const userMessage: ChatItem = { type: 'message', id: userMsgId, text: sentText, sender: 'user' };
+    const userMessage: ChatItem = { type: 'userMessage', id: userMsgId, text: currentInput };
 
-    // Update state
+    // Update messages state immediately with user message
     setMessages(prevMessages => [
       ...prevMessages,
       userMessage
     ]);
 
-    setMessage('');
+    // Clear input field
+    setInputText('');
 
     try {
-      const aiResponseText = await sendChatMessage(sentText);
-      const aiMsgId = (Date.now() + 1).toString();
+      // Assume api.sendChatMessage returns an object like { aiMessage?: string, properties?: PropertyData[] }
+      const response = await api.sendChatMessage(currentInput);
+      const responseId = (Date.now() + 1).toString();
 
-      // Create AI message with the new type
-      const aiMessage: ChatItem = { type: 'message', id: aiMsgId, text: aiResponseText, sender: 'ai' };
-
-      setMessages(prev => [...prev, aiMessage]);
+      if (response.properties && response.properties.length > 0) {
+        // If properties are returned, add a propertyStack item
+        const propertyStackItem: ChatItem = {
+            id: responseId,
+            type: 'propertyStack',
+            properties: response.properties
+        };
+        setMessages(prev => [...prev, propertyStackItem]);
+      } else if (response.aiMessage) {
+         // If only an AI text message is returned
+        const aiMessageItem: ChatItem = { 
+            id: responseId, 
+            type: 'aiMessage', 
+            text: response.aiMessage 
+        };
+        setMessages(prev => [...prev, aiMessageItem]);
+      } else {
+        // Handle cases where the API might return nothing (optional)
+        console.log("API returned no message or properties.");
+      }
 
     } catch (error) {
-      console.error("Error sending message or receiving AI reply:", error);
+      console.error("Error sending message or receiving API reply:", error);
       const errorMsgId = (Date.now() + 2).toString();
-
-      // Create error message with the new type
+      // Create error message item
       const errorMessage: ChatItem = {
-        type: 'message',
         id: errorMsgId,
-        text: "Sorry, I encountered an error. Please try again.",
-        sender: 'ai'
+        type: 'aiMessage', // Display error as an AI message
+        text: "Désolé, une erreur s'est produite. Veuillez réessayer.",
       };
       setMessages(prev => [...prev, errorMessage]);
     }
@@ -113,19 +138,21 @@ const ChatScreen = () => {
 
   const renderChatItem = ({ item }: { item: ChatItem }) => {
     switch (item.type) {
-      case 'message':
-        return item.sender === 'ai' ? (
-          <AIMessageBubble messageText={item.text} />
-        ) : (
-          <UserMessageBubble messageText={item.text} />
-        );
+      case 'userMessage':
+        return <UserMessageBubble messageText={item.text || ''} />;
+      case 'aiMessage':
+        return <AIMessageBubble messageText={item.text || ''} />;
       case 'propertyStack':
+        // Pass properties to the stack component
+        // NOTE: PropertyCardStack needs to be updated to accept/use this prop
         return (
           <View style={{ width: '100%', alignItems: 'center', marginVertical: 16 }}>
-            <PropertyCardStack />
+            <PropertyCardStack properties={item.properties || []} /> 
           </View>
         );
       default:
+        // Ensure exhaustive check or return null
+        // const _exhaustiveCheck: never = item;
         return null;
     }
   };
@@ -139,14 +166,19 @@ const ChatScreen = () => {
       >
         <View style={styles.mainContainer}>
           <FlatList
-            data={messages} // Use the messages state (now ChatItem[])
-            renderItem={renderChatItem} // Use the new render function
-            keyExtractor={(item: ChatItem) => item.id} // Update type hint
+            data={messages}
+            renderItem={renderChatItem}
+            keyExtractor={(item: ChatItem) => item.id}
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10 }}
-            ListHeaderComponent={() => (
-              <Text style={styles.dateHeader}>01 RECHERCHE :: 8 AVRIL | 10:54</Text>
-            )}
+            ListHeaderComponent={() => {
+              if (messages.length > 1) {
+                return (
+                    <Text style={styles.dateHeader}>01 RECHERCHE :: 8 AVRIL | 10:54</Text>
+                );
+              }
+              return null;
+            }}
           />
 
           {/* Smart Tags Area - Render from state */}
@@ -172,8 +204,8 @@ const ChatScreen = () => {
               style={styles.textInput}
               placeholder="Message Barak..."
               placeholderTextColor="#ACACAC"
-              value={message}
-              onChangeText={setMessage}
+              value={inputText}
+              onChangeText={setInputText}
               multiline
               onSubmitEditing={handleSend}
             />
@@ -225,6 +257,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E5EA',
     backgroundColor: '#FFF',
     alignItems: 'center',
+    marginBottom: 5,
   },
   textInput: {
     flex: 1,

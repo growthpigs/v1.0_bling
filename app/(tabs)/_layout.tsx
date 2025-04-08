@@ -51,7 +51,7 @@ function CustomDrawerContent(props: any) {
 function BottomTabsLayout() {
   return (
     <Tabs 
-        // initialRouteName="index" // Setting initial route name here might conflict with drawer state; manage focus via drawer navigation if needed.
+        initialRouteName="index" // Set the initial/default tab to 'index' (Chat screen)
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
@@ -192,8 +192,9 @@ export default function TabLayout() {
 // Styles for the central button wrapper
 const styles = StyleSheet.create({
   centralButtonWrapper: {
-    top: -10, // Lowered the button (was -20)
+    top: -10, // Pushed up 5px (was -5)
     justifyContent: 'center',
     alignItems: 'center',
+    transform: [{ translateX: 3 }],
   },
 });
