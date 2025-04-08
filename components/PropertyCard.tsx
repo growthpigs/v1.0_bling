@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   ImageSourcePropType,
   Platform,
   TouchableOpacity,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -33,15 +33,17 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   area = 130,
   rooms = 3,
 }) => {
-  const imageSource: ImageSourcePropType = imageUrl
-    ? { uri: imageUrl }
-    : placeholderImage;
-
   const detailsString = `€${price} • ${area}m² • ${rooms} Piece${Number(rooms) !== 1 ? 's' : ''}`;
 
   return (
     <View style={styles.cardContainer}>
-      <Image source={imageSource} style={styles.image} resizeMode="cover" />
+      <Image
+        style={styles.image}
+        source={{ uri: imageUrl }}
+        placeholder={placeholderImage}
+        contentFit="cover"
+        transition={300}
+      />
 
       {/* Top Banner */}
       <View style={styles.bannerContainer}>
@@ -90,7 +92,6 @@ const styles = StyleSheet.create({
   cardContainer: {
     aspectRatio: 1,
     borderRadius: 11,
-    backgroundColor: '#E0E0E0',
     overflow: 'hidden',
     position: 'relative',
     width: '100%',

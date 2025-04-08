@@ -120,9 +120,8 @@ const ChatScreen = () => {
           <UserMessageBubble messageText={item.text} />
         );
       case 'propertyStack':
-        // Wrap PropertyCardStack in a View to apply margin
         return (
-          <View style={{ marginTop: 16 }}>
+          <View style={{ width: '100%', alignItems: 'center', marginVertical: 16 }}>
             <PropertyCardStack />
           </View>
         );
