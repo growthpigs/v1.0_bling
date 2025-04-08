@@ -18,13 +18,12 @@ import UserMessageBubble from '../../components/UserMessageBubble';
 import SmartTag from '@/components/SmartTag';
 // Import the API service
 import { sendChatMessage } from '../../services/api';
+import PropertyCardStack from '../../components/PropertyCardStack'; // Import the new stack component
 
-// Define Message type
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'ai';
-}
+// Define ChatItem union type
+type ChatItem =
+  | { type: 'message'; id: string; text: string; sender: 'user' | 'ai'; }
+  | { type: 'propertyStack'; id: string; /* Add other props later if needed */ };
 
 // Define TagData type
 interface TagData {
@@ -35,10 +34,11 @@ interface TagData {
 
 const ChatScreen = () => {
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', text: 'Salut ! Prêt à trouver ton nouveau chez-toi ?', sender: 'ai' },
-    { id: '2', text: 'Oui! Je cherche à acheter.', sender: 'user' },
-    { id: '3', text: 'Super! Dans quelle ville ou quartier ?', sender: 'ai' }
+  const [messages, setMessages] = useState<ChatItem[]>([
+    { type: 'message', id: '1', text: 'Salut ! Prêt à trouver ton nouveau chez-toi ?', sender: 'ai' },
+    { type: 'message', id: '2', text: 'Oui! Je cherche à acheter.', sender: 'user' },
+    { type: 'message', id: '3', text: 'Super! Dans quelle ville ou quartier ?', sender: 'ai' },
+    { id: 'stack-1', type: 'propertyStack' }
   ]);
 
   // State for Smart Tags
@@ -68,31 +68,36 @@ const ChatScreen = () => {
 
     const userMsgId = Date.now().toString();
 
-    // Add user message optimistically
+    // Create user message with the new type
+    const userMessage: ChatItem = { type: 'message', id: userMsgId, text: sentText, sender: 'user' };
+
+    // Update state
     setMessages(prevMessages => [
       ...prevMessages,
-      { id: userMsgId, text: sentText, sender: 'user' }
+      userMessage
     ]);
 
-    // Clear input
     setMessage('');
 
-    // Call API service and handle response/error
     try {
       const aiResponseText = await sendChatMessage(sentText);
-      const aiMsgId = (Date.now() + 1).toString(); // Ensure unique ID
-      const aiMessage: Message = { id: aiMsgId, text: aiResponseText, sender: 'ai' };
+      const aiMsgId = (Date.now() + 1).toString();
+
+      // Create AI message with the new type
+      const aiMessage: ChatItem = { type: 'message', id: aiMsgId, text: aiResponseText, sender: 'ai' };
 
       setMessages(prev => [...prev, aiMessage]);
 
     } catch (error) {
       console.error("Error sending message or receiving AI reply:", error);
-      // Optionally add an error message bubble to the chat
       const errorMsgId = (Date.now() + 2).toString();
-      const errorMessage: Message = {
+
+      // Create error message with the new type
+      const errorMessage: ChatItem = {
+        type: 'message',
         id: errorMsgId,
         text: "Sorry, I encountered an error. Please try again.",
-        sender: 'ai' // Display error as an AI message
+        sender: 'ai'
       };
       setMessages(prev => [...prev, errorMessage]);
     }
@@ -106,6 +111,26 @@ const ChatScreen = () => {
     console.log(`Removing tag with id: ${tagIdToRemove}`); // Optional log
   };
 
+  const renderChatItem = ({ item }: { item: ChatItem }) => {
+    switch (item.type) {
+      case 'message':
+        return item.sender === 'ai' ? (
+          <AIMessageBubble messageText={item.text} />
+        ) : (
+          <UserMessageBubble messageText={item.text} />
+        );
+      case 'propertyStack':
+        // Wrap PropertyCardStack in a View to apply margin
+        return (
+          <View style={{ marginTop: 16 }}>
+            <PropertyCardStack />
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -114,21 +139,14 @@ const ChatScreen = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.mainContainer}>
-          {/* Chat Feed Area - Using FlatList */}
           <FlatList
-            data={messages}
-            renderItem={({ item }: { item: Message }) =>
-              item.sender === 'ai' ? (
-                <AIMessageBubble messageText={item.text} />
-              ) : (
-                <UserMessageBubble messageText={item.text} />
-              )
-            }
-            keyExtractor={(item: Message) => item.id}
+            data={messages} // Use the messages state (now ChatItem[])
+            renderItem={renderChatItem} // Use the new render function
+            keyExtractor={(item: ChatItem) => item.id} // Update type hint
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10 }}
             ListHeaderComponent={() => (
-              <Text style={styles.dateHeader}>01 Récherche :: April 8, 2025 08:03</Text>
+              <Text style={styles.dateHeader}>01 RECHERCHE :: 8 AVRIL | 10:54</Text>
             )}
           />
 
@@ -186,9 +204,10 @@ const styles = StyleSheet.create({
   dateHeader: {
     textAlign: 'center',
     paddingVertical: 15,
-    fontSize: 16,
+    fontSize: 12,
     color: '#ACACAC',
     fontFamily: 'SF-Pro-Regular',
+    textTransform: 'uppercase',
   },
   smartTagsScrollView: {
     paddingHorizontal: 10,
