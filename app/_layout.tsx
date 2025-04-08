@@ -1,6 +1,7 @@
 import { Stack, SplashScreen } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -32,6 +33,10 @@ export default function RootLayout() {
     return null; // Return null or a loading indicator while fonts are loading
   }
 
-  // Render the navigator once fonts are loaded
-  return <Stack screenOptions={{ headerShown: false }} />;
+  // Wrap the Stack navigator with GestureHandlerRootView
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </GestureHandlerRootView>
+  );
 }

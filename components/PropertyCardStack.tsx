@@ -6,11 +6,17 @@ import {
   Dimensions,
   useWindowDimensions,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   interpolate,
   Extrapolate,
+  withSpring,
+  withTiming,
+  useAnimatedReaction,
+  runOnJS,
+  interpolateColor
 } from 'react-native-reanimated';
 
 // Import the PropertyCard component
@@ -54,6 +60,15 @@ const mockProperties = [
     rooms: 4,
     imageUrl: 'https://via.placeholder.com/400/FFB6C1/808080?text=Property+4',
   },
+  {
+    id: 'prop-5',
+    addressLine1: 'Avenue Montaigne',
+    addressLine2: 'Paris 8th',
+    price: '4,500,000',
+    area: 220,
+    rooms: 6,
+    imageUrl: 'https://via.placeholder.com/400/DDA0DD/808080?text=Property+5',
+  },
 ];
 
 // Extract PropertyCardProps if needed, assuming PropertyCard takes these
@@ -79,87 +94,180 @@ const PropertyCardStack: React.FC<PropertyCardStackProps> = (props) => {
   const cardWidth = screenWidth * 0.85;
   const cardHeight = cardWidth;
 
+  // 1. Define Swipe Threshold
+  const SWIPE_THRESHOLD = screenWidth * 0.4;
+
+  // 2. Restore useSharedValue for activeIndex
   const activeIndex = useSharedValue(0);
+  
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const rotateZGesture = useSharedValue(0);
+
+  // 6. Temporarily Comment Out useAnimatedReaction
+  /*
+  useAnimatedReaction(
+    () => activeIndex.value, // Use direct activeIndex
+    (currentValue, previousValue) => {
+      if (currentValue !== null && previousValue !== null && currentValue !== previousValue) {
+        translateX.value = 0;
+        translateY.value = 0;
+        rotateZGesture.value = 0;
+      }
+    },
+    [activeIndex, translateX, translateY, rotateZGesture] // Use direct activeIndex
+  );
+  */
+
+  // 2. Modify panGesture.onEnd
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      translateX.value = event.translationX;
+      translateY.value = event.translationY;
+      rotateZGesture.value = interpolate(
+        event.translationX,
+        [-screenWidth / 2, screenWidth / 2],
+        [-10, 10],
+        Extrapolate.CLAMP
+      );
+    })
+    .onEnd((event) => {
+      if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
+        const direction = Math.sign(event.translationX);
+        const velocityX = event.velocityX;
+        const velocityY = event.velocityY;
+        
+        // Use velocity in the spring configuration
+        translateX.value = withSpring(screenWidth * direction * 1.1, { // Keep target off-screen
+          velocity: velocityX,
+          damping: 18, // Adjusted parameters
+          stiffness: 100,
+          mass: 0.9
+        }); 
+        translateY.value = withSpring(event.translationY * 0.5, { // Keep Y target influenced by drag end
+          velocity: velocityY,
+          damping: 18,
+          stiffness: 100,
+          mass: 0.9
+        });
+        // Let rotation spring smoothly based on its velocity at release
+        rotateZGesture.value = withSpring(rotateZGesture.value * 0.8, { // Target a slightly reduced rotation
+            velocity: event.velocityX * 0.01, // Scale velocity's impact on rotation spring
+            damping: 18,
+            stiffness: 100,
+            mass: 0.9
+        }); 
+
+        // Update activeIndex directly after starting spring animations
+        activeIndex.value = activeIndex.value + 1;
+
+      } else {
+        // Snap back with velocity factored in for a smoother return
+        translateX.value = withSpring(0, { velocity: event.velocityX });
+        translateY.value = withSpring(0, { velocity: event.velocityY });
+        rotateZGesture.value = withSpring(0, { velocity: event.velocityX * 0.01}); // Scale velocity impact
+      }
+    });
 
   return (
     <View style={[styles.stackContainer, { alignSelf: 'center', height: cardHeight * 1.15 }]}>
-      {/* Map over the properties data */}
       {mockProperties.map((property: PropertyData, index: number) => {
-        // Remove positionIndex defined with useSharedValue here
-        // const positionIndex = useSharedValue(index - activeIndex.value);
-        
         const animatedStyle = useAnimatedStyle(() => {
-          // Calculate positionIndex directly inside the hook
+          // 4. Modify useAnimatedStyle: Use activeIndex.value
           const positionIndex = index - activeIndex.value;
 
-          // Use the directly calculated positionIndex
-          if (positionIndex < 0 || positionIndex > 4) { 
+          if (positionIndex < 0 || positionIndex > 4) {
+            // Ensure swiped-away cards are fully gone
+            if(positionIndex < 0) return { opacity: 0, zIndex: -1 }; 
+            // Keep distant future cards invisible but potentially ready
             return { opacity: 0, zIndex: -1 };
           }
 
-          const scale = interpolate(
-            positionIndex, // Use direct value
-            [0, 1, 2, 3, 4],
-            [1, 0.99, 0.98, 0.97, 0.96],
-            Extrapolate.CLAMP
-          );
-          const rotateZ = interpolate(
-            positionIndex, // Use direct value
-            [0, 1, 2, 3, 4],
-            [0, degreesToRadians(-1), degreesToRadians(-2), degreesToRadians(-3), degreesToRadians(-4)],
-            Extrapolate.CLAMP
-          );
-          const translateY = interpolate(
-            positionIndex, // Use direct value
-            [0, 1, 2, 3, 4],
-            [0, 5, 10, 15, 20],
-            Extrapolate.CLAMP
-          );
-
-          const calculatedStyle = { 
-            opacity: 1,
-            transform: [
-              { scale },
-              { rotateZ: `${rotateZ}rad` },
-              { translateY },
-            ],
-          };
-
-          // ---- REMOVE LOGGING ----
-          /*
-          if (positionIndex >= 0 && positionIndex <= 4) {
-             console.log(
-               `[Card ${index} PIDx ${positionIndex}] => Style:`, 
-               JSON.stringify(calculatedStyle, null, 2)
-             );
+          if (positionIndex === 0) {
+            // Apply gesture transforms ONLY to the top card
+            return {
+              opacity: 1,
+              transform: [
+                { translateX: translateX.value }, 
+                { translateY: translateY.value },
+                { rotateZ: `${rotateZGesture.value}deg` }, // Use gesture rotation (degrees)
+              ],
+            };
+          } else {
+            // Apply fanning transforms to underlying cards
+            const scale = interpolate(
+              positionIndex,
+              [0, 1, 2, 3, 4],
+              [1, 0.99, 0.98, 0.97, 0.96],
+              Extrapolate.CLAMP
+            );
+            const rotateZInterpolated = interpolate(
+              positionIndex,
+              [0, 1, 2, 3, 4],
+              [0, degreesToRadians(-1), degreesToRadians(-2), degreesToRadians(-3), degreesToRadians(-4)],
+              Extrapolate.CLAMP
+            );
+            const translateYInterpolated = interpolate(
+              positionIndex,
+              [0, 1, 2, 3, 4],
+              [0, 5, 10, 15, 20],
+              Extrapolate.CLAMP
+            );
+            return {
+              opacity: 1,
+              transform: [
+                { scale },
+                { rotateZ: `${rotateZInterpolated}rad` }, // Use interpolated rotation (radians)
+                { translateY: translateYInterpolated },
+              ],
+            };
           }
-          */
-          // ---- END LOGGING ----
-
-          return calculatedStyle;
         });
 
-        // Calculate directly for conditional rendering too
+        // 5. Modify Conditional Rendering Logic: Use activeIndex.value
         const currentPositionIndex = index - activeIndex.value;
 
-        return (
-          <Animated.View
-            key={property.id}
-            style={[
-              styles.cardBase,
-              { width: cardWidth, height: cardHeight },
-              animatedStyle,
-              { zIndex: mockProperties.length - index }
-            ]}
-          >
-            {/* Conditional Rendering based on direct calculation */} 
-            {currentPositionIndex === 0 ? (
-              <PropertyCard {...property} />
-            ) : (
-              <View style={styles.cardOutline} />
-            )}
-          </Animated.View>
-        );
+        // Avoid rendering cards that have been swiped away completely
+        if (currentPositionIndex < 0) {
+            return null; 
+        }
+
+        // Apply GestureDetector ONLY around the top card's content
+        if (currentPositionIndex === 0) {
+          return (
+            <GestureDetector key={property.id} gesture={panGesture}>
+              {/* Top card Animated.View goes INSIDE GestureDetector */}
+              <Animated.View
+                style={[
+                  styles.cardBase,
+                  { width: cardWidth, height: cardHeight },
+                  animatedStyle, 
+                  { zIndex: mockProperties.length - index }
+                ]}
+              >
+                <PropertyCard {...property} />
+              </Animated.View>
+            </GestureDetector>
+          );
+        } else if (currentPositionIndex > 0 && currentPositionIndex <= 4) {
+            // Only render outlines for cards 1 through 4 in the stack
+            return (
+                <Animated.View
+                key={property.id}
+                style={[
+                    styles.cardBase,
+                    { width: cardWidth, height: cardHeight },
+                    animatedStyle,
+                    { zIndex: mockProperties.length - index }
+                ]}
+                >
+                <View style={styles.cardOutline} />
+                </Animated.View>
+            );
+        } else {
+            // For cards beyond position 4, render nothing (or potentially a placeholder)
+            return null;
+        }
       })}
     </View>
   );
