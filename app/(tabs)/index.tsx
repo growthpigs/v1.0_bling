@@ -16,12 +16,21 @@ import AIMessageBubble from '../../components/AIMessageBubble';
 import UserMessageBubble from '../../components/UserMessageBubble';
 // Import SmartTag using alias
 import SmartTag from '@/components/SmartTag';
+// Import the API service
+import { sendChatMessage } from '../../services/api';
 
 // Define Message type
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
+}
+
+// Define TagData type
+interface TagData {
+  id: string;
+  text: string;
+  gradient: { colors: string[]; locations: number[] };
 }
 
 const ChatScreen = () => {
@@ -32,33 +41,69 @@ const ChatScreen = () => {
     { id: '3', text: 'Super! Dans quelle ville ou quartier ?', sender: 'ai' }
   ]);
 
-  const handleSend = () => {
+  // State for Smart Tags
+  const [displayedTags, setDisplayedTags] = useState<TagData[]>([
+    {
+      id: 'tag-1',
+      text: "Acheter",
+      gradient: { colors: ["#8DE473", "#5BCFBC"], locations: [0, 1] }
+    },
+    {
+      id: 'tag-2',
+      text: "Paris, 12th",
+      gradient: { colors: ["#6BD0BA", "#75E8DB"], locations: [0, 1] }
+    },
+    {
+      id: 'tag-3',
+      text: "3 Pieces",
+      gradient: { colors: ["#80E4D9", "#6BD8F7"], locations: [0, 1] }
+    }
+  ]);
+
+  const handleSend = async () => {
     const sentText = message.trim();
     if (!sentText) {
-      return; // Don't send empty messages
+      return;
     }
 
     const userMsgId = Date.now().toString();
 
-    // Add user message
+    // Add user message optimistically
     setMessages(prevMessages => [
       ...prevMessages,
       { id: userMsgId, text: sentText, sender: 'user' }
     ]);
 
-    // Clear input immediately
+    // Clear input
     setMessage('');
 
-    // Simulate AI reply after a delay
-    setTimeout(() => {
+    // Call API service and handle response/error
+    try {
+      const aiResponseText = await sendChatMessage(sentText);
       const aiMsgId = (Date.now() + 1).toString(); // Ensure unique ID
-      const aiReply = { id: aiMsgId, text: 'Received: ' + sentText + '. Processing...', sender: 'ai' as const }; // Explicitly type sender
+      const aiMessage: Message = { id: aiMsgId, text: aiResponseText, sender: 'ai' };
 
-      setMessages(prevMessages => [
-        ...prevMessages,
-        aiReply
-      ]);
-    }, 1000); // 1 second delay
+      setMessages(prev => [...prev, aiMessage]);
+
+    } catch (error) {
+      console.error("Error sending message or receiving AI reply:", error);
+      // Optionally add an error message bubble to the chat
+      const errorMsgId = (Date.now() + 2).toString();
+      const errorMessage: Message = {
+        id: errorMsgId,
+        text: "Sorry, I encountered an error. Please try again.",
+        sender: 'ai' // Display error as an AI message
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
+  // Function to remove a tag
+  const handleRemoveTag = (tagIdToRemove: string) => {
+    setDisplayedTags(currentTags =>
+      currentTags.filter(tag => tag.id !== tagIdToRemove)
+    );
+    console.log(`Removing tag with id: ${tagIdToRemove}`); // Optional log
   };
 
   return (
@@ -87,28 +132,21 @@ const ChatScreen = () => {
             )}
           />
 
-          {/* Smart Tags Area */}
+          {/* Smart Tags Area - Render from state */}
           <ScrollView
             horizontal={true}
             showsHorizontalScrollIndicator={false}
             style={styles.smartTagsScrollView}
             contentContainerStyle={styles.smartTagsContainer}
           >
-            <SmartTag
-              text="Acheter"
-              gradient={{ colors: ["#8DE473", "#5BCFBC"], locations: [0, 1] }}
-              onRemove={() => console.log('Remove Acheter')}
-            />
-            <SmartTag
-              text="Paris, 12th"
-              gradient={{ colors: ["#6BD0BA", "#75E8DB"], locations: [0, 1] }}
-              onRemove={() => console.log('Remove Paris')}
-            />
-            <SmartTag
-              text="3 Pieces"
-              gradient={{ colors: ["#80E4D9", "#6BD8F7"], locations: [0, 1] }}
-              onRemove={() => console.log('Remove Pieces')}
-            />
+            {displayedTags.map(tag => (
+              <SmartTag
+                key={tag.id} // Use tag.id as key
+                text={tag.text}
+                gradient={tag.gradient}
+                onRemove={() => handleRemoveTag(tag.id)} // Pass remove handler
+              />
+            ))}
           </ScrollView>
 
           {/* Input Bar Area */}
@@ -148,7 +186,7 @@ const styles = StyleSheet.create({
   dateHeader: {
     textAlign: 'center',
     paddingVertical: 15,
-    fontSize: 12,
+    fontSize: 16,
     color: '#ACACAC',
     fontFamily: 'SF-Pro-Regular',
   },
