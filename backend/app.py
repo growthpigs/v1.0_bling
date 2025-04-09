@@ -131,9 +131,39 @@ async def chat_endpoint(request: Request):
             logger.warning("Gemini API key not configured. Cannot extract criteria.")
             ai_response_text = f"Backend received: '{user_message}' (AI processing disabled - key missing)."
 
-        # 3. TODO: Generate Smart Tags based on parsed_criteria
-        # smart_tags_result = generate_tags(parsed_criteria)
-        logger.info(f"Generated Smart Tags (TODO): {smart_tags_result}")
+        # 3. Generate Smart Tags based on parsed_criteria
+        tags_list = [] # Initialize empty list for tags
+        if parsed_criteria: # Check if we have parsed criteria
+            logger.info(f"Generating tags from criteria: {parsed_criteria}")
+            for key, value in parsed_criteria.items():
+                # Check if value is not None and not an empty string/list
+                if value is not None and value != '' and value != []:
+                    # Simple tag generation: use the value as text
+                    # TODO: Refine tag text generation (e.g., add units like '', format budget)
+                    tag_text = str(value)
+                    if key == 'budget' and isinstance(value, (int, float)): # Example refinement
+                        tag_text = f"{value}€"
+                    elif key == 'rooms' and isinstance(value, (int, float)): # Example refinement
+                        tag_text = f"{value} rooms"
+                    elif key == 'features' and isinstance(value, list): # If features is a list
+                        # Create a tag for each feature in the list
+                        for feature in value:
+                            if feature: # Ensure feature is not empty
+                                tags_list.append({'text': str(feature).capitalize()})
+                        continue # Skip adding the list itself as a tag
+                    elif key == 'action':
+                        tag_text = str(value).capitalize() # Capitalize action
+                    
+                    # Add other key-specific formatting if needed
+                    
+                    tags_list.append({'text': tag_text}) 
+                    
+            logger.info(f"Generated tags: {tags_list}")
+        else:
+            logger.info("No parsed criteria found, skipping tag generation.")
+        
+        # Assign the generated list (even if empty) to the variable used in the response
+        smart_tags_result = tags_list 
 
         # 4. TODO: Call Firecrawl using parsed_criteria
         # properties_result = call_firecrawl(parsed_criteria)
@@ -142,10 +172,8 @@ async def chat_endpoint(request: Request):
         # 5. Format Response
         response_data = { 
             "aiMessage": ai_response_text, 
-            # Include parsed criteria in response for debugging/potential FE use?
-            # "extractedCriteria": parsed_criteria, 
             "properties": properties_result, 
-            "smartTags": smart_tags_result 
+            "smartTags": smart_tags_result # Ensure this uses the generated tags_list
         }
         logger.info(f"Chat endpoint returning final data: {response_data}")
         return response_data
