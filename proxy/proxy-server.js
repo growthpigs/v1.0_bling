@@ -41,6 +41,7 @@ app.post('/api/chat', async (req, res) => {
 
     console.log('Proxy response status from backend:', response.status); // Log on proxy server
     console.log('Proxy response data from backend:', response.data); // Log on proxy server
+    console.log('Proxy sending back response headers:', res.getHeaders());
     res.status(response.status).json(response.data); // Forward backend status and data
 
   } catch (error) {
