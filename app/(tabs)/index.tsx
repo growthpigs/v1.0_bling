@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Platform,
   FlatList,
   ScrollView,
+  Button,
+  Alert,
 } from 'react-native';
 // Import message bubble components
 import AIMessageBubble from '../../components/AIMessageBubble';
@@ -19,6 +21,7 @@ import SmartTag from '@/components/SmartTag';
 // Import the API service
 import * as api from '../../services/api';
 import PropertyCardStack from '../../components/PropertyCardStack'; // Import the new stack component
+import { Ionicons } from '@expo/vector-icons'; // Make sure Ionicons is imported
 
 // Define PropertyData based on PropertyCardStack mock data
 interface PropertyData {
@@ -50,24 +53,8 @@ const ChatScreen = () => {
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<ChatItem[]>([]);
 
-  // State for Smart Tags
-  const [displayedTags, setDisplayedTags] = useState<TagData[]>([
-    {
-      id: 'tag-1',
-      text: "Acheter",
-      gradient: { colors: ["#8DE473", "#5BCFBC"], locations: [0, 1] }
-    },
-    {
-      id: 'tag-2',
-      text: "Paris, 12th",
-      gradient: { colors: ["#6BD0BA", "#75E8DB"], locations: [0, 1] }
-    },
-    {
-      id: 'tag-3',
-      text: "3 Pieces",
-      gradient: { colors: ["#80E4D9", "#6BD8F7"], locations: [0, 1] }
-    }
-  ]);
+  // Initialize Smart Tags state as empty array
+  const [displayedTags, setDisplayedTags] = useState<TagData[]>([]);
 
   const handleSend = async () => {
     const currentInput = inputText.trim();
@@ -77,7 +64,7 @@ const ChatScreen = () => {
 
     const userMsgId = Date.now().toString();
 
-    // Create user message with the new type
+    // Create user message
     const userMessage: ChatItem = { type: 'userMessage', id: userMsgId, text: currentInput };
 
     // Update messages state immediately with user message
@@ -86,46 +73,74 @@ const ChatScreen = () => {
       userMessage
     ]);
 
-    // Clear input field
-    setInputText('');
-
+    // **Call API *before* clearing input**
+    let response;
     try {
-      // Assume api.sendChatMessage returns an object like { aiMessage?: string, properties?: PropertyData[] }
-      const response = await api.sendChatMessage(currentInput);
-      const responseId = (Date.now() + 1).toString();
-
-      if (response.properties && response.properties.length > 0) {
-        // If properties are returned, add a propertyStack item
-        const propertyStackItem: ChatItem = {
-            id: responseId,
-            type: 'propertyStack',
-            properties: response.properties
-        };
-        setMessages(prev => [...prev, propertyStackItem]);
-      } else if (response.aiMessage) {
-         // If only an AI text message is returned
-        const aiMessageItem: ChatItem = { 
-            id: responseId, 
-            type: 'aiMessage', 
-            text: response.aiMessage 
-        };
-        setMessages(prev => [...prev, aiMessageItem]);
-      } else {
-        // Handle cases where the API might return nothing (optional)
-        console.log("API returned no message or properties.");
-      }
-
+      response = await api.sendChatMessage(currentInput);
     } catch (error) {
-      console.error("Error sending message or receiving API reply:", error);
+      console.error("Error sending message:", error);
       const errorMsgId = (Date.now() + 2).toString();
-      // Create error message item
       const errorMessage: ChatItem = {
         id: errorMsgId,
-        type: 'aiMessage', // Display error as an AI message
-        text: "Désolé, une erreur s'est produite. Veuillez réessayer.",
+        type: 'aiMessage',
+        text: "Désolé, une erreur s'est produite lors de l'envoi. Veuillez réessayer.",
       };
       setMessages(prev => [...prev, errorMessage]);
+      return; // Exit if sending failed
     }
+
+    // Clear input field **after** API call starts/succeeds
+    setInputText('');
+
+    // Process the response (if successful)
+    const responseId = (Date.now() + 1).toString();
+    if (response) { // Check if response exists (API call didn't throw error)
+        console.log('[handleSend] Processing successful API response:', response);
+        if (response.properties && response.properties.length > 0) {
+          const propertyStackItem: ChatItem = {
+              id: responseId,
+              type: 'propertyStack',
+              properties: response.properties
+          };
+          console.log('[handleSend] Adding property stack item to state');
+          setMessages(prev => {
+             console.log('[setMessages] Adding propertyStack. Prev state length:', prev.length);
+             const newState = [...prev, propertyStackItem];
+             console.log('[setMessages] New state length:', newState.length);
+             return newState;
+          });
+        } else if (response.aiMessage) {
+          const aiMessageItem: ChatItem = { 
+              id: responseId, 
+              type: 'aiMessage', 
+              text: response.aiMessage 
+          };
+          console.log('[handleSend] Adding AI message item to state:', aiMessageItem);
+          setMessages(prev => {
+             console.log('[setMessages] Adding aiMessage. Prev state length:', prev.length);
+             const newState = [...prev, aiMessageItem];
+             console.log('[setMessages] New state length:', newState.length);
+             return newState;
+          });
+        } else {
+          console.log("[handleSend] API returned no message or properties, adding default.");
+          // Optionally add a default AI message if response is empty but successful
+          const emptySuccessMsg: ChatItem = {
+            id: responseId,
+            type: 'aiMessage',
+            text: "J'ai bien reçu votre message.", // Example message
+          };
+          setMessages(prev => {
+             console.log('[setMessages] Adding default empty success. Prev state length:', prev.length);
+             const newState = [...prev, emptySuccessMsg];
+             console.log('[setMessages] New state length:', newState.length);
+             return newState;
+          });
+        }
+    } else {
+        console.log('[handleSend] Response object was null/undefined after API call.');
+    }
+    
   };
 
   // Function to remove a tag
@@ -157,20 +172,37 @@ const ChatScreen = () => {
     }
   };
 
+  const handleSimpleTestLog = () => {
+    console.log("--- Simple Test Button Pressed ---");
+    Alert.alert("Simple Log Test", "Check Metro terminal for log message.");
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={-10}
       >
         <View style={styles.mainContainer}>
+          {/* Simple Log Test Button - Removed for clarity */}
+          {/* <Button title="Run Simple Log Test" onPress={handleSimpleTestLog} /> */}
+
+          {/* Test Buttons - REMOVED */}
+          {/* 
+          <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E5EA', flexDirection: 'row', justifyContent: 'space-around' }}>
+             <Button title="Test Proxy Health" onPress={api.testProxyHealth} /> 
+             <Button title="Test HTTPBin POST" onPress={api.testHttpbin} /> 
+          </View>
+          */}
+
           <FlatList
             data={messages}
             renderItem={renderChatItem}
             keyExtractor={(item: ChatItem) => item.id}
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10 }}
+            extraData={messages.length} // Added extraData prop
             ListHeaderComponent={() => {
               if (messages.length > 1) {
                 return (
@@ -257,7 +289,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E5EA',
     backgroundColor: '#FFF',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 13,
   },
   textInput: {
     flex: 1,
@@ -286,6 +318,11 @@ const styles = StyleSheet.create({
     fontFamily: 'SF-Pro-Regular',
     fontSize: 18,
     lineHeight: 20,
+  },
+  testButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 10,
   },
 });
 

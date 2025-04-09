@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.v1.0-bling-local"
+      "bundleIdentifier": "com.anonymous.v1.0-bling-local",
+      "jsEngine": "hermes"
     },
     "android": {
       "adaptiveIcon": {
