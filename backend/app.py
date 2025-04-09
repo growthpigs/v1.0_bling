@@ -63,6 +63,7 @@ async def health_check():
 # --- Chat Endpoint ---
 @app.post("/api/chat", status_code=200)
 async def chat_endpoint(request: Request):
+    logging.info(">>>> Received request for /api/chat <<<<")
     logger.info("Chat endpoint hit.")
     ai_response_text = "Processing your request..." # Default initial message
     parsed_criteria = {} 
