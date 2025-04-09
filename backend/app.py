@@ -125,55 +125,83 @@ async def chat_endpoint(request: Request):
                         
             except Exception as gemini_e:
                 logger.error(f"Error calling Gemini API: {gemini_e}", exc_info=True)
-                # Keep parsed_criteria empty
+                parsed_criteria = {} # Ensure criteria is empty on error
                 ai_response_text = "Sorry, there was an error communicating with the AI assistant."
         else:
             logger.warning("Gemini API key not configured. Cannot extract criteria.")
+            parsed_criteria = {} # Ensure criteria is empty if key missing
             ai_response_text = f"Backend received: '{user_message}' (AI processing disabled - key missing)."
 
-        # 3. Generate Smart Tags based on parsed_criteria
-        tags_list = [] # Initialize empty list for tags
-        if parsed_criteria: # Check if we have parsed criteria
-            logger.info(f"Generating tags from criteria: {parsed_criteria}")
-            for key, value in parsed_criteria.items():
-                # Check if value is not None and not an empty string/list
-                if value is not None and value != '' and value != []:
-                    # Simple tag generation: use the value as text
-                    # TODO: Refine tag text generation (e.g., add units like '', format budget)
-                    tag_text = str(value)
-                    if key == 'budget' and isinstance(value, (int, float)): # Example refinement
-                        tag_text = f"{value}€"
-                    elif key == 'rooms' and isinstance(value, (int, float)): # Example refinement
-                        tag_text = f"{value} rooms"
-                    elif key == 'features' and isinstance(value, list): # If features is a list
-                        # Create a tag for each feature in the list
-                        for feature in value:
-                            if feature: # Ensure feature is not empty
-                                tags_list.append({'text': str(feature).capitalize()})
-                        continue # Skip adding the list itself as a tag
-                    elif key == 'action':
-                        tag_text = str(value).capitalize() # Capitalize action
-                    
-                    # Add other key-specific formatting if needed
-                    
-                    tags_list.append({'text': tag_text}) 
-                    
-            logger.info(f"Generated tags: {tags_list}")
+        # --- Action Check & Tag Generation --- 
+        tags_list = []
+        proceed_with_search = False # Flag to control flow
+
+        # Check if criteria parsing was successful and yielded a dictionary
+        if isinstance(parsed_criteria, dict):
+            extracted_action = parsed_criteria.get('action')
+            logger.info(f"Extracted action: {extracted_action}")
+
+            # Normalize action for checking (convert to lowercase, handle None)
+            normalized_action = str(extracted_action).lower() if extracted_action is not None else None
+
+            # Check if action is clearly defined as buy or rent
+            if normalized_action in ['buy', 'purchase', 'acheter', 'rent', 'lease', 'louer']:
+                proceed_with_search = True # We have a clear action
+                logger.info(f"Action '{normalized_action}' confirmed. Proceeding.")
+                # Generate tags (excluding the action itself)
+                for key, value in parsed_criteria.items():
+                    if key == 'action': # *** Skip creating a tag for the action ***
+                        continue 
+                    if value is not None and value != '' and value != []:
+                        tag_text = str(value)
+                        if key == 'budget' and isinstance(value, (int, float)): 
+                           tag_text = f"{value}€"
+                        elif key == 'rooms' and isinstance(value, (int, float)):
+                           tag_text = f"{value} rooms"
+                        elif key == 'features' and isinstance(value, list):
+                           for feature in value:
+                               if feature: tags_list.append({'text': str(feature).capitalize()})
+                           continue 
+                        # Removed action capitalization as it's skipped now
+                        
+                        tags_list.append({'text': tag_text.capitalize() if isinstance(tag_text, str) else tag_text}) 
+                logger.info(f"Generated tags (excluding action): {tags_list}")
+                 # Keep the confirmation message if action is valid
+                criteria_summary = ", ".join(f"{k}: {v}" for k, v in parsed_criteria.items() if v and k != 'action')
+                ai_response_text = f"Okay, looking for properties based on: {criteria_summary}" if criteria_summary else f"Okay, looking to {normalized_action}. Any other criteria?"
+
+            else:
+                # Action is missing, None, or ambiguous (e.g., "find")
+                logger.info(f"Action '{normalized_action}' is missing or ambiguous. Asking user.")
+                ai_response_text = "Understood. Are you looking to buy or to rent?" 
+                # Ensure tags_list remains empty
+                tags_list = [] 
+                # proceed_with_search remains False
+
         else:
-            logger.info("No parsed criteria found, skipping tag generation.")
+             # Handle case where parsed_criteria is not a dict (e.g., Gemini error)
+             logger.warning("Parsed criteria is not a dictionary. Cannot check action or generate tags.")
+             # Keep default error message in ai_response_text if already set
+             tags_list = []
+             # proceed_with_search remains False
         
-        # Assign the generated list (even if empty) to the variable used in the response
+        # Assign the generated list (potentially empty) to the result variable
         smart_tags_result = tags_list 
 
-        # 4. TODO: Call Firecrawl using parsed_criteria
-        # properties_result = call_firecrawl(parsed_criteria)
+        # 4. TODO: Call Firecrawl using parsed_criteria (Only if proceed_with_search is True)
+        if proceed_with_search:
+            logger.info("Proceeding to Firecrawl (TODO)...")
+            # properties_result = call_firecrawl(parsed_criteria)
+        else:
+            logger.info("Skipping Firecrawl call.")
+            properties_result = [] # Ensure properties are empty if not searching
         logger.info(f"Firecrawl Results (TODO): {properties_result}")
 
         # 5. Format Response
         response_data = { 
             "aiMessage": ai_response_text, 
             "properties": properties_result, 
-            "smartTags": smart_tags_result # Ensure this uses the generated tags_list
+            "smartTags": smart_tags_result
         }
         logger.info(f"Chat endpoint returning final data: {response_data}")
         return response_data
