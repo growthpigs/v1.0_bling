@@ -135,6 +135,7 @@ async def chat_endpoint(request: Request):
         # --- Action Check & Tag Generation --- 
         tags_list = []
         proceed_with_search = False # Flag to control flow
+        clarification_needed = False # Flag for ambiguous action
 
         # Check if criteria parsing was successful and yielded a dictionary
         if isinstance(parsed_criteria, dict):
@@ -142,60 +143,89 @@ async def chat_endpoint(request: Request):
             logger.info(f"Extracted action: {extracted_action}")
 
             # Normalize action for checking (convert to lowercase, handle None)
-            normalized_action = str(extracted_action).lower() if extracted_action is not None else None
+            normalized_action = str(extracted_action).lower().strip() if extracted_action is not None else None
 
-            # Check if action is clearly defined as buy or rent
-            if normalized_action in ['buy', 'purchase', 'acheter', 'rent', 'lease', 'louer']:
-                proceed_with_search = True # We have a clear action
-                logger.info(f"Action '{normalized_action}' confirmed. Proceeding.")
+            # Define clear buy/rent actions
+            buy_actions = ['buy', 'purchase', 'acheter']
+            rent_actions = ['rent', 'lease', 'louer']
+
+            if normalized_action in buy_actions or normalized_action in rent_actions:
+                proceed_with_search = True 
+                logger.info(f"Action '{normalized_action}' confirmed. Proceeding with tag generation.")
+                
                 # Generate tags (excluding the action itself)
                 for key, value in parsed_criteria.items():
-                    if key == 'action': # *** Skip creating a tag for the action ***
-                        continue 
+                    if key == 'action': 
+                        continue # Skip creating a tag for the action
+                    
                     if value is not None and value != '' and value != []:
-                        tag_text = str(value)
-                        if key == 'budget' and isinstance(value, (int, float)): 
-                           tag_text = f"{value}€"
-                        elif key == 'rooms' and isinstance(value, (int, float)):
-                           tag_text = f"{value} rooms"
+                        tag_text = None # Initialize tag_text for this iteration
+                        
+                        # --- Basic French Tag Translation/Formatting ---
+                        if key == 'property_type' and isinstance(value, str):
+                            if value.lower() == 'apartment': tag_text = 'Appartement'
+                            elif value.lower() == 'house': tag_text = 'Maison'
+                            else: tag_text = value.capitalize()
+                        elif key == 'budget':
+                            try: # Format budget with space separator and euro sign
+                                budget_float = float(str(value).replace(' ', '').replace('€', ''))
+                                tag_text = f"{budget_float:,.0f}€".replace(',', ' ')
+                            except (ValueError, TypeError):
+                                tag_text = str(value) # Fallback
+                        elif key == 'rooms':
+                           try: # Format rooms 
+                               tag_text = f"{int(value)} pièces"
+                           except (ValueError, TypeError):
+                                tag_text = str(value) # Fallback
                         elif key == 'features' and isinstance(value, list):
                            for feature in value:
-                               if feature: tags_list.append({'text': str(feature).capitalize()})
-                           continue 
-                        # Removed action capitalization as it's skipped now
+                               if feature and isinstance(feature, str):
+                                   tags_list.append({'text': feature.capitalize()})
+                           continue # Skip adding the list itself as a tag
+                        else: # Default for location or other string types
+                             if isinstance(value, str):
+                                 tag_text = value.capitalize()
+                             else:
+                                 tag_text = str(value) # Fallback for non-strings
+                        # ---------------------------------------------
                         
-                        tags_list.append({'text': tag_text.capitalize() if isinstance(tag_text, str) else tag_text}) 
+                        # Append tag if text was generated
+                        if tag_text is not None:
+                            tags_list.append({'text': tag_text}) 
+                            
                 logger.info(f"Generated tags (excluding action): {tags_list}")
-                 # Keep the confirmation message if action is valid
-                criteria_summary = ", ".join(f"{k}: {v}" for k, v in parsed_criteria.items() if v and k != 'action')
-                ai_response_text = f"Okay, looking for properties based on: {criteria_summary}" if criteria_summary else f"Okay, looking to {normalized_action}. Any other criteria?"
+                 # Update confirmation message (show only relevant criteria)
+                criteria_summary = ", ".join(tag['text'] for tag in tags_list)
+                ai_response_text = f"Ok, je cherche : {criteria_summary}." if criteria_summary else f"Ok, je cherche à {normalized_action}. D'autres critères?"
 
             else:
-                # Action is missing, None, or ambiguous (e.g., "find")
-                logger.info(f"Action '{normalized_action}' is missing or ambiguous. Asking user.")
-                ai_response_text = "Understood. Are you looking to buy or to rent?" 
-                # Ensure tags_list remains empty
-                tags_list = [] 
-                # proceed_with_search remains False
-
+                # Action is None, empty, or ambiguous (e.g., "find")
+                logger.info(f"Action '{normalized_action}' is missing or ambiguous. Setting clarification needed.")
+                clarification_needed = True
+                # Response text and tags are handled below based on this flag
         else:
-             # Handle case where parsed_criteria is not a dict (e.g., Gemini error)
              logger.warning("Parsed criteria is not a dictionary. Cannot check action or generate tags.")
-             # Keep default error message in ai_response_text if already set
-             tags_list = []
-             # proceed_with_search remains False
+             clarification_needed = True # Treat parsing failure as needing clarification
         
-        # Assign the generated list (potentially empty) to the result variable
-        smart_tags_result = tags_list 
-
+        # --- Set final response based on flags --- 
+        if clarification_needed:
+            ai_response_text = "Compris. Vous cherchez à acheter ou à louer?" # Updated French question
+            smart_tags_result = [] # Ensure no tags are sent
+            proceed_with_search = False # Ensure no search happens
+            logger.info("Clarification needed, returning question to user.")
+        else:
+             # ai_response_text and tags_list were set correctly above if action was valid
+            smart_tags_result = tags_list
+            logger.info(f"Action valid, returning AI message: '{ai_response_text}' and tags: {smart_tags_result}")
+        
         # 4. TODO: Call Firecrawl using parsed_criteria (Only if proceed_with_search is True)
+        properties_result = [] # Default to empty list
         if proceed_with_search:
             logger.info("Proceeding to Firecrawl (TODO)...")
             # properties_result = call_firecrawl(parsed_criteria)
         else:
-            logger.info("Skipping Firecrawl call.")
-            properties_result = [] # Ensure properties are empty if not searching
-        logger.info(f"Firecrawl Results (TODO): {properties_result}")
+            logger.info("Skipping Firecrawl call due to missing/ambiguous action or error.")
+        # logger.info(f"Firecrawl Results (TODO): {properties_result}") # Log removed as it's always [] for now
 
         # 5. Format Response
         response_data = { 
