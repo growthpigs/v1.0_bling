@@ -18,7 +18,7 @@ import TabBarProfilIcon from '../../components/ui/TabBarProfilIcon';
 import BlurTabBarBackground from '../../components/ui/TabBarBackground';
 
 // Imports needed for the custom central button and layout
-import { TouchableOpacity, View, StyleSheet, Text, SafeAreaView, ScrollView } from 'react-native';
+import { TouchableOpacity, View, StyleSheet, Text, SafeAreaView, ScrollView, useWindowDimensions } from 'react-native';
 import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 
 // Define type for tabBarIcon props for TypeScript (optional but good practice)
@@ -47,8 +47,18 @@ function CustomDrawerContent(props: any) {
   );
 }
 
+// Define constants for font sizes
+const LARGE_SCREEN_LABEL_SIZE = 12;
+const SMALL_SCREEN_LABEL_SIZE = 8; // Reduced size further (was 10)
+const SMALL_SCREEN_WIDTH_THRESHOLD = 390; // Threshold for smaller devices like iPhone 13 mini (375)
+
 // Original Tabs Layout defined as an internal component
 function BottomTabsLayout() {
+  // Get screen dimensions
+  const { width } = useWindowDimensions();
+  // Determine font size based on width
+  const labelFontSize = width < SMALL_SCREEN_WIDTH_THRESHOLD ? SMALL_SCREEN_LABEL_SIZE : LARGE_SCREEN_LABEL_SIZE;
+
   return (
     <Tabs 
         initialRouteName="index" // Set the initial/default tab to 'index' (Chat screen)
@@ -57,13 +67,10 @@ function BottomTabsLayout() {
           tabBarStyle: {
             borderTopWidth: 0,
             elevation: 0,
+            // height: 50, // REMOVED explicit height
           },
           tabBarActiveTintColor: '#000000',
           tabBarInactiveTintColor: '#CCCCCC',
-          tabBarLabelStyle: {
-            fontFamily: 'SF-Pro-Regular',
-            fontSize: 10,
-          },
         }}
     >
       {/* plus screen */}
@@ -76,7 +83,7 @@ function BottomTabsLayout() {
             return <TabBarPlusIcon color={color} size={largerSize} />;
           },
           tabBarLabel: ({ children, color }) => (
-            <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
+            <Text style={{ color: color, fontSize: labelFontSize, fontFamily: 'SF-Pro-Regular' }}>
               {children}
             </Text>
           ),
@@ -98,7 +105,7 @@ function BottomTabsLayout() {
           },
           tabBarLabel: ({ children, color }) => (
             <View style={{ transform: [{ translateX: -12 }] }}>
-              <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
+              <Text style={{ color: color, fontSize: labelFontSize, fontFamily: 'SF-Pro-Regular' }}>
                 {children}
               </Text>
             </View>
@@ -137,7 +144,7 @@ function BottomTabsLayout() {
           },
           tabBarLabel: ({ children, color }) => (
             <View style={{ transform: [{ translateX: 12 }] }}>
-              <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
+              <Text style={{ color: color, fontSize: labelFontSize, fontFamily: 'SF-Pro-Regular' }}>
                 {children}
               </Text>
             </View>
@@ -155,7 +162,7 @@ function BottomTabsLayout() {
             return <TabBarProfilIcon color={color} size={largerSize} />;
           },
           tabBarLabel: ({ children, color }) => (
-            <Text style={{ color: color, fontSize: 12, fontFamily: 'SF-Pro-Regular' }}>
+            <Text style={{ color: color, fontSize: labelFontSize, fontFamily: 'SF-Pro-Regular' }}>
               {children}
             </Text>
           ),
@@ -192,9 +199,8 @@ export default function TabLayout() {
 // Styles for the central button wrapper
 const styles = StyleSheet.create({
   centralButtonWrapper: {
-    top: -10, // Pushed up 5px (was -5)
+    top: -10, // Current vertical position
     justifyContent: 'center',
     alignItems: 'center',
-    transform: [{ translateX: 3 }],
   },
 });

@@ -12,16 +12,18 @@ import {
   ScrollView,
   Button,
   Alert,
+  Keyboard
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 // Import message bubble components
 import AIMessageBubble from '../../components/AIMessageBubble';
 import UserMessageBubble from '../../components/UserMessageBubble';
-// Import SmartTag using alias
-import SmartTag from '@/components/SmartTag';
 // Import the API service
 import * as api from '../../services/api';
 import PropertyCardStack from '../../components/PropertyCardStack'; // Import the new stack component
 import { Ionicons } from '@expo/vector-icons'; // Make sure Ionicons is imported
+// Restore original SmartTag import
+import SmartTag from '../../components/SmartTag'; // Keep the correct import
 
 // Define PropertyData based on PropertyCardStack mock data
 interface PropertyData {
@@ -42,6 +44,13 @@ interface ChatItem {
   properties?: PropertyData[];
 }
 
+// Updated ActiveTagData to include gradient
+interface ActiveTagData { 
+  id: string;
+  text: string;
+  gradient: { colors: string[]; locations: number[] };
+}
+
 // Define TagData type
 interface TagData {
   id: string;
@@ -49,31 +58,36 @@ interface TagData {
   gradient: { colors: string[]; locations: number[] };
 }
 
+// --- Gradient Definitions (Extracted from Builder.io JSON) ---
+const tagGradients = [
+  { colors: ["#8DE473", "#5BCFBC"], locations: [0, 1] }, // Acheter
+  { colors: ["#6BD0BA", "#75E8DB"], locations: [0, 1] }, // Paris,12th
+  { colors: ["#80E4D9", "#6BD8F7"], locations: [0, 1] }, // 3 Pieces
+  { colors: ["#5BD6F7", "#55C2F0"], locations: [0, 1] }, // Apartment
+  { colors: ["#58BFEC", "#46AAFF"], locations: [0, 1] }, // €800k max.
+  { colors: ["#49A8FF", "#B1A7FA"], locations: [0, 1] }, // A-Energy
+  { colors: ["#B5B0FB", "#C3A1EE"], locations: [0, 1] }, // Balcony
+  { colors: ["#CAA0EA", "#D5A6DB"], locations: [0, 1] }, // Ecole
+  { colors: ["#DFA0F1", "#F2A0EC"], locations: [0, 1] }, // Près famille
+  { colors: ["#F4A1E7", "#F49BC3"], locations: [0, 1] }, // Good Buy
+  { colors: ["#F599C5", "#FC7FA9"], locations: [0, 1] }, // Metro
+  { colors: ["#FD7CA2", "#F18085"], locations: [0, 1] }  // Extra
+];
+
 const ChatScreen = () => {
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<ChatItem[]>([]);
-
-  // Initialize Smart Tags state as empty array
-  const [displayedTags, setDisplayedTags] = useState<TagData[]>([]);
+  const [activeTags, setActiveTags] = useState<ActiveTagData[]>([]); 
 
   const handleSend = async () => {
+    console.warn("!!!!!! handleSend WAS CALLED !!!!!");
     const currentInput = inputText.trim();
-    if (!currentInput) {
-      return;
-    }
+    if (!currentInput) return;
 
     const userMsgId = Date.now().toString();
-
-    // Create user message
     const userMessage: ChatItem = { type: 'userMessage', id: userMsgId, text: currentInput };
+    setMessages(prevMessages => [...prevMessages, userMessage]);
 
-    // Update messages state immediately with user message
-    setMessages(prevMessages => [
-      ...prevMessages,
-      userMessage
-    ]);
-
-    // **Call API *before* clearing input**
     let response;
     try {
       response = await api.sendChatMessage(currentInput);
@@ -89,66 +103,76 @@ const ChatScreen = () => {
       return; // Exit if sending failed
     }
 
-    // Clear input field **after** API call starts/succeeds
     setInputText('');
+    console.log('[handleSend] Input text cleared.');
+    Keyboard.dismiss();
 
-    // Process the response (if successful)
     const responseId = (Date.now() + 1).toString();
-    if (response) { // Check if response exists (API call didn't throw error)
-        console.log('[handleSend] Processing successful API response:', response);
-        if (response.properties && response.properties.length > 0) {
-          const propertyStackItem: ChatItem = {
-              id: responseId,
-              type: 'propertyStack',
-              properties: response.properties
-          };
-          console.log('[handleSend] Adding property stack item to state');
-          setMessages(prev => {
-             console.log('[setMessages] Adding propertyStack. Prev state length:', prev.length);
-             const newState = [...prev, propertyStackItem];
-             console.log('[setMessages] New state length:', newState.length);
-             return newState;
-          });
-        } else if (response.aiMessage) {
-          const aiMessageItem: ChatItem = { 
-              id: responseId, 
-              type: 'aiMessage', 
-              text: response.aiMessage 
-          };
-          console.log('[handleSend] Adding AI message item to state:', aiMessageItem);
-          setMessages(prev => {
-             console.log('[setMessages] Adding aiMessage. Prev state length:', prev.length);
-             const newState = [...prev, aiMessageItem];
-             console.log('[setMessages] New state length:', newState.length);
-             return newState;
-          });
-        } else {
-          console.log("[handleSend] API returned no message or properties, adding default.");
-          // Optionally add a default AI message if response is empty but successful
-          const emptySuccessMsg: ChatItem = {
+    if (response) {
+      console.log('[handleSend] Processing successful API response:', response);
+
+      // Update Active Tags state - Map backend response including gradient
+      const tagsFromApi = (response.smartTags || []) as {text: string}[];
+      const formattedTags: ActiveTagData[] = tagsFromApi.map((tag, index) => ({
+          id: `tag-${responseId}-${index}`, // Generate temporary unique ID
+          text: tag.text,
+          gradient: tagGradients[index % tagGradients.length] // Assign gradient cyclically
+      }));
+      setActiveTags(formattedTags);
+      console.log('[handleSend] Updated activeTags state with formatted data:', formattedTags);
+
+      // Process AI message / properties
+      if (response.properties && response.properties.length > 0) {
+        const propertyStackItem: ChatItem = {
             id: responseId,
-            type: 'aiMessage',
-            text: "J'ai bien reçu votre message.", // Example message
-          };
-          setMessages(prev => {
-             console.log('[setMessages] Adding default empty success. Prev state length:', prev.length);
-             const newState = [...prev, emptySuccessMsg];
-             console.log('[setMessages] New state length:', newState.length);
-             return newState;
-          });
-        }
+            type: 'propertyStack',
+            properties: response.properties
+        };
+        console.log('[handleSend] Adding property stack item to state');
+        setMessages(prev => {
+           console.log('[setMessages] Adding propertyStack. Prev state length:', prev.length);
+           const newState = [...prev, propertyStackItem];
+           console.log('[setMessages] New state length:', newState.length);
+           return newState;
+        });
+      } else if (response.aiMessage) {
+        const aiMessageItem: ChatItem = { 
+            id: responseId, 
+            type: 'aiMessage', 
+            text: response.aiMessage 
+        };
+        console.log('[handleSend] Adding AI message item to state:', aiMessageItem);
+        setMessages(prev => {
+           console.log('[setMessages] Adding aiMessage. Prev state length:', prev.length);
+           const newState = [...prev, aiMessageItem];
+           console.log('[setMessages] New state length:', newState.length);
+           return newState;
+        });
+      } else {
+        console.log("[handleSend] API returned no message or properties, adding default.");
+        // Optionally add a default AI message if response is empty but successful
+        const emptySuccessMsg: ChatItem = {
+          id: responseId,
+          type: 'aiMessage',
+          text: "J'ai bien reçu votre message.", // Example message
+        };
+        setMessages(prev => {
+           console.log('[setMessages] Adding default empty success. Prev state length:', prev.length);
+           const newState = [...prev, emptySuccessMsg];
+           console.log('[setMessages] New state length:', newState.length);
+           return newState;
+        });
+      }
     } else {
-        console.log('[handleSend] Response object was null/undefined after API call.');
+      console.log('[handleSend] Response object was null/undefined after API call.');
     }
-    
   };
 
-  // Function to remove a tag
   const handleRemoveTag = (tagIdToRemove: string) => {
-    setDisplayedTags(currentTags =>
+    setActiveTags(currentTags =>
       currentTags.filter(tag => tag.id !== tagIdToRemove)
     );
-    console.log(`Removing tag with id: ${tagIdToRemove}`); // Optional log
+    console.log(`[handleRemoveTag] Removing tag with id: ${tagIdToRemove}`);
   };
 
   const renderChatItem = ({ item }: { item: ChatItem }) => {
@@ -172,80 +196,63 @@ const ChatScreen = () => {
     }
   };
 
-  const handleSimpleTestLog = () => {
-    console.log("--- Simple Test Button Pressed ---");
-    Alert.alert("Simple Log Test", "Check Metro terminal for log message.");
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
-        keyboardVerticalOffset={-10}
+        style={styles.keyboardAvoidingContainer}
+        keyboardVerticalOffset={0}
       >
-        <View style={styles.mainContainer}>
-          {/* Simple Log Test Button - Removed for clarity */}
-          {/* <Button title="Run Simple Log Test" onPress={handleSimpleTestLog} /> */}
+        <FlatList
+          data={messages}
+          renderItem={renderChatItem}
+          keyExtractor={(item: ChatItem) => item.id}
+          style={styles.flatList}
+          contentContainerStyle={styles.flatListContent}
+          extraData={messages.length}
+          ListHeaderComponent={() => {
+            if (messages.length > 1) {
+              return (
+                  <Text style={styles.dateHeader}>01 RECHERCHE :: 8 AVRIL | 10:54</Text>
+              );
+            }
+            return null;
+          }}
+        />
 
-          {/* Test Buttons - REMOVED */}
-          {/* 
-          <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E5EA', flexDirection: 'row', justifyContent: 'space-around' }}>
-             <Button title="Test Proxy Health" onPress={api.testProxyHealth} /> 
-             <Button title="Test HTTPBin POST" onPress={api.testHttpbin} /> 
-          </View>
-          */}
-
-          <FlatList
-            data={messages}
-            renderItem={renderChatItem}
-            keyExtractor={(item: ChatItem) => item.id}
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10 }}
-            extraData={messages.length} // Added extraData prop
-            ListHeaderComponent={() => {
-              if (messages.length > 1) {
-                return (
-                    <Text style={styles.dateHeader}>01 RECHERCHE :: 8 AVRIL | 10:54</Text>
-                );
-              }
-              return null;
-            }}
-          />
-
-          {/* Smart Tags Area - Render from state */}
+        {/* Smart Tags ScrollView */}
+        {activeTags && activeTags.length > 0 && (
           <ScrollView
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            style={styles.smartTagsScrollView}
-            contentContainerStyle={styles.smartTagsContainer}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              style={styles.smartTagsScrollView} 
+              contentContainerStyle={styles.smartTagsContainer} 
           >
-            {displayedTags.map(tag => (
-              <SmartTag
-                key={tag.id} // Use tag.id as key
-                text={tag.text}
-                gradient={tag.gradient}
-                onRemove={() => handleRemoveTag(tag.id)} // Pass remove handler
-              />
-            ))}
+              {activeTags.map((tag, index) => ( 
+                <SmartTag 
+                    key={tag.id} 
+                    text={tag.text} 
+                    gradient={tag.gradient} 
+                    onRemove={() => handleRemoveTag(tag.id)} 
+                />
+              ))}
           </ScrollView>
-
-          {/* Input Bar Area */}
-          <View style={styles.inputBarContainer}>
+        )}
+        
+        <View style={styles.inputBarContainer}>
             <TextInput
-              style={styles.textInput}
-              placeholder="Message Barak..."
-              placeholderTextColor="#ACACAC"
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              onSubmitEditing={handleSend}
+            style={styles.textInput}
+            placeholder="Message Barak..."
+            placeholderTextColor="#ACACAC"
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
             />
             <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-              <Text style={styles.sendButtonText}>↑</Text>
+            <Text style={styles.sendButtonText}>↑</Text>
             </TouchableOpacity>
-          </View>
         </View>
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -256,13 +263,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF',
   },
-  keyboardAvoidingView: {
+  keyboardAvoidingContainer: {
     flex: 1,
   },
-  mainContainer: {
+  flatList: {
     flex: 1,
-    backgroundColor: '#FFF',
-    paddingBottom: 5,
+  },
+  flatListContent: {
+     paddingHorizontal: 10, 
+     paddingTop: 10 
   },
   dateHeader: {
     textAlign: 'center',
@@ -272,24 +281,38 @@ const styles = StyleSheet.create({
     fontFamily: 'SF-Pro-Regular',
     textTransform: 'uppercase',
   },
-  smartTagsScrollView: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    flexGrow: 0,
-  },
-  smartTagsContainer: {
+  tagAreaContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    flexWrap: 'wrap',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E5EA',
+  },
+  smartTagPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    backgroundColor: '#EFEFF4',
+    margin: 4,
+    overflow: 'hidden',
+  },
+  smartTagText: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontFamily: 'SF-Pro-Regular',
+  },
+  smartTagTextOnGradient: {
+     color: '#FFFFFF',
   },
   inputBarContainer: {
     flexDirection: 'row',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 3,
     borderTopColor: '#E5E5EA',
     backgroundColor: '#FFF',
     alignItems: 'center',
-    marginBottom: 13,
+    marginBottom: 20,
   },
   textInput: {
     flex: 1,
@@ -319,10 +342,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 20,
   },
-  testButtonContainer: {
+  // Restore original Smart Tag container styles (assuming names)
+  smartTagsScrollView: {
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    flexGrow: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E5EA', 
+  },
+  smartTagsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 10,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    paddingVertical: 4,
+    gap: 4,
   },
 });
 

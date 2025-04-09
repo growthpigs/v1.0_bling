@@ -34,7 +34,7 @@ export async function sendChatMessage(userMessage: string): Promise<ChatResponse
   const timeoutId = setTimeout(() => {
       console.log('[API Timeout] Request timed out, aborting fetch.');
       controller.abort();
-  }, 15000); // 15 second timeout
+  }, 45000); // Changed timeout to 45 seconds (was 15000)
   // --------------------------------------
 
   try {
@@ -69,12 +69,15 @@ export async function sendChatMessage(userMessage: string): Promise<ChatResponse
     }
 
     console.log('[API] Parsed JSON Response:', data);
+    console.warn("!!!!!! sendChatMessage: SUCCESS !!!!!");
     return data;
 
   } catch (error) {
     // Clear the timeout in case the error happened before fetch completed but after timeout was set
     clearTimeout(timeoutId); 
     
+    console.warn("!!!!!! sendChatMessage: ERROR !!!!!", error);
+
     let errorMessage = "Désolé, une erreur réseau ou serveur s'est produite via le proxy.";
     let errorString = String(error);
 

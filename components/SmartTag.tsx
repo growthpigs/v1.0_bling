@@ -30,11 +30,10 @@ const SmartTag: React.FC<SmartTagProps> = ({ text, gradient, onRemove }) => {
       />
     </Svg>
   );
-
   return (
     <LinearGradient
-      colors={gradient.colors}
-      locations={gradient.locations}
+      colors={gradient.colors as [string, string, ...string[]]}
+      locations={gradient.locations as [number, number, ...number[]]}
       start={{ x: 0, y: 0.5 }} // Horizontal gradient
       end={{ x: 1, y: 0.5 }}   // Horizontal gradient
       style={styles.gradientContainer}
@@ -53,8 +52,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, // Pill shape (half of height)
     flexDirection: 'row', // Align text and icon horizontally
     alignItems: 'center', // Center items vertically
-    paddingHorizontal: 12, // Padding inside the tag
-    // justifyContent: 'space-between', // Using marginRight on text instead
+    paddingHorizontal: 8, // Reduced horizontal padding
     alignSelf: 'flex-start', // Ensure container width fits content
     overflow: 'hidden', // Necessary for border-radius to work with gradient on some platforms
   },
@@ -62,7 +60,8 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 12,
     fontFamily: 'SF-Pro-Bold', // Use bold font family
-    marginRight: 8, // Space between text and close icon
+    marginRight: 5, // Reduced space between text and icon
+    marginTop: -1, // Nudge text up slightly for alignment
   },
   closeButton: {
     // Style for the touchable area if needed

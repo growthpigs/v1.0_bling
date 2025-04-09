@@ -8,6 +8,7 @@
       ]
     },
     // Added settings to help TypeScript resolve library types
+    "module": "esnext",
     "moduleResolution": "bundler", 
     "jsx": "react-jsx" 
   },
