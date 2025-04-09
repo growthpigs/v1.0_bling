@@ -64,7 +64,7 @@ async def health_check():
 @app.post("/api/chat", status_code=200)
 async def chat_endpoint(request: Request):
     logger.info("Chat endpoint hit.")
-    ai_response_text = "Backend received message, AI logic not fully implemented yet." 
+    ai_response_text = "Processing your request..." # Default initial message
     parsed_criteria = {} 
     properties_result = []
     smart_tags_result = []
@@ -81,43 +81,77 @@ async def chat_endpoint(request: Request):
              logger.error(f"Failed to parse JSON body or empty message: {e}")
              raise HTTPException(status_code=400, detail=f"Invalid/Empty JSON body: {e}")
 
-        # 2. Call Gemini (Basic structure - refine prompt/parsing later)
-        if genai.api_key:
+        # 2. Call Gemini to Extract Criteria
+        if gemini_api_key: # Check if API key is configured
             try:
                 logger.info("Attempting Gemini call...")
                 model = genai.GenerativeModel('gemini-1.5-flash') 
-                # TODO: Refine this prompt significantly for better extraction
-                prompt = f"Parse this property search query and return criteria as JSON (keys: action, location, property_type, rooms, budget, features): '{user_message}'"
+                
+                # Refined prompt asking for JSON output
+                prompt = f"""Analyze the following user request for real estate properties. Extract the key criteria and return ONLY a valid JSON object string with the following keys: 'action' (e.g., 'buy', 'rent', 'find'), 'location' (city/area), 'property_type' (e.g., 'apartment', 'house'), 'rooms' (number or range), 'budget' (number or range), 'features' (list of keywords). If a criterion is not mentioned, use null or an empty string/list for its value. User request: '{user_message}'"""
+                
+                logger.info(f"Sending prompt to Gemini: {prompt}")
                 response = await model.generate_content_async(prompt)
-                gemini_raw_response = response.text
-                logger.info(f"Gemini Raw Response: {gemini_raw_response}")
-                # TODO: Implement robust parsing of Gemini response into parsed_criteria dict
-                # TODO: Handle potential Gemini errors/safety blocks
-                ai_response_text = f"Received AI Response (needs parsing): {gemini_raw_response}" # Placeholder
+                
+                # Log raw response safely (handle potential non-text parts if needed)
+                try:
+                   gemini_raw_response = response.text
+                   logger.info(f"Gemini Raw Response Text: {gemini_raw_response}")
+                except ValueError as ve:
+                    logger.warning(f"Gemini response did not contain valid text: {ve}. Full response: {response.parts}")
+                    gemini_raw_response = None # Indicate no usable text response
+                    ai_response_text = "Received an unexpected response format from AI."
+
+                # Attempt to parse the response text if it exists
+                if gemini_raw_response:
+                    try:
+                        # Clean potential markdown/fencing if Gemini adds it
+                        cleaned_response = gemini_raw_response.strip().strip('```json').strip('```').strip()
+                        parsed_criteria = json.loads(cleaned_response)
+                        logger.info(f"Successfully parsed Gemini response: {parsed_criteria}")
+                        # Generate a user-friendly confirmation message
+                        criteria_summary = ", ".join(f"{k}: {v}" for k, v in parsed_criteria.items() if v) # Only show non-empty values
+                        ai_response_text = f"Okay, looking for properties based on: {criteria_summary}" if criteria_summary else "Okay, I understood your request. Refining search criteria."
+
+                    except json.JSONDecodeError as json_e:
+                        logger.error(f"Failed to parse Gemini JSON response: {json_e}. Raw response was: {gemini_raw_response}")
+                        parsed_criteria = {} # Ensure it's reset on error
+                        ai_response_text = "I understood your request, but had trouble extracting specific criteria. Could you please rephrase?"
+                    except Exception as parse_e: # Catch other potential parsing issues
+                        logger.error(f"Unexpected error parsing Gemini response: {parse_e}. Raw response was: {gemini_raw_response}")
+                        parsed_criteria = {} 
+                        ai_response_text = "Sorry, I encountered an issue processing the details of your request."
+                        
             except Exception as gemini_e:
                 logger.error(f"Error calling Gemini API: {gemini_e}", exc_info=True)
-                ai_response_text = "Error communicating with AI."
+                # Keep parsed_criteria empty
+                ai_response_text = "Sorry, there was an error communicating with the AI assistant."
         else:
-            logger.warning("Gemini API key not configured. Returning basic response.")
-            ai_response_text = f"Backend received: {user_message}"
+            logger.warning("Gemini API key not configured. Cannot extract criteria.")
+            ai_response_text = f"Backend received: '{user_message}' (AI processing disabled - key missing)."
 
         # 3. TODO: Generate Smart Tags based on parsed_criteria
         # smart_tags_result = generate_tags(parsed_criteria)
+        logger.info(f"Generated Smart Tags (TODO): {smart_tags_result}")
 
         # 4. TODO: Call Firecrawl using parsed_criteria
         # properties_result = call_firecrawl(parsed_criteria)
+        logger.info(f"Firecrawl Results (TODO): {properties_result}")
 
         # 5. Format Response
         response_data = { 
             "aiMessage": ai_response_text, 
+            # Include parsed criteria in response for debugging/potential FE use?
+            # "extractedCriteria": parsed_criteria, 
             "properties": properties_result, 
             "smartTags": smart_tags_result 
         }
-        logger.info(f"Chat endpoint returning final data.")
+        logger.info(f"Chat endpoint returning final data: {response_data}")
         return response_data
 
     except HTTPException as http_e:
          # Re-raise HTTPExceptions (like the 400 from body parsing)
+         logger.warning(f"HTTPException in chat endpoint: {http_e.status_code} - {http_e.detail}")
          raise http_e
     except Exception as e:
         logger.error(f"Unexpected error processing /api/chat: {e}", exc_info=True)
